@@ -2,6 +2,7 @@
 
 namespace Shef\InSync\Main;
 
+use Bitrix\Main\Application;
 use Bitrix\Main\Config;
 
 class Constants
@@ -29,6 +30,61 @@ class Constants
 		return $list;
 	}
 
+	/**
+	 * Свой каталог импорта задаётся в /bitrix/.settings_extra.php:
+	 *   'shef.insync' => ['value' => ['importDir' => '/var/data/import'], 'readonly' => true],
+	 */
+	public const SETTINGS_KEY = 'shef.insync';
+	public const SETTINGS_IMPORT_DIR = 'importDir';
+	
+	/** Имя каталога импорта по умолчанию — рядом с корнем сайта. */
+	public const IMPORT_DIR_NAME = 'sh_import';
+	
+	/**
+	 * Каталог импорта — абсолютный путь, ВНЕ корня сайта.
+	 *
+	 * По умолчанию — на уровень выше корня: при корне /home/bitrix/www это
+	 * /home/bitrix/sh_import. Внутри: <код>/ — файлы на импорт, copy/<код>/ —
+	 * архив, problem/<код>/ — файлы с проблемой.
+	 *
+	 * До 2.0.0 каталог был /upload/import, под корнем сайта: выгрузки (цены,
+	 * клиенты, заказы) веб-сервер отдавал любому, кто угадал имя, а имена
+	 * архива были предсказуемы. Вне корня сайта настраивать ничего не нужно —
+	 * так же, как логи shef.problems.
+	 *
+	 * Проект может задать свой каталог — ключ SETTINGS_KEY в
+	 * /bitrix/.settings_extra.php. Принимается только абсолютный путь; что-то
+	 * другое — каталог по умолчанию: относительный путь зависел бы от текущего
+	 * каталога процесса, и агент из cron искал бы файлы не там, куда их
+	 * положила страница загрузки.
+	 *
+	 * Корня сайта нет (CLI без DOCUMENT_ROOT) — временный каталог системы, а
+	 * не «/sh_import» в корне файловой системы.
+	 *
+	 * @see docs/security.md
+	 * @return string без «/» на конце
+	 */
+	public static function getImportDir(): string
+	{
+		$settings = Config\Configuration::getValue(static::SETTINGS_KEY);
+		$custom = is_array($settings) ? ($settings[static::SETTINGS_IMPORT_DIR] ?? null) : null;
+		
+		if(is_string($custom) && str_starts_with($custom, '/') && rtrim($custom, '/') !== '')
+		{
+			return rtrim($custom, '/');
+		}
+		
+		$documentRoot = rtrim(str_replace('\\', '/', (string)Application::getDocumentRoot()), '/');
+		if($documentRoot === '')
+		{
+			return rtrim(str_replace('\\', '/', sys_get_temp_dir()), '/').'/'.static::IMPORT_DIR_NAME;
+		}
+		
+		$parent = dirname($documentRoot);
+		
+		return ($parent === '/' ? '' : $parent).'/'.static::IMPORT_DIR_NAME;
+	}
+	
 	// region Users ////
 	public static function getSystemUserId(): int
 	{
