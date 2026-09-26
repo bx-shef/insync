@@ -1,0 +1,42 @@
+{
+	"name": "bxshef/insync",
+	"description": "Битрикс24 (коробка): заготовки для синхронизаций — агенты, таблица импорта, разбор CSV и XML, модели ORM для каталога и CRM",
+	"type": "bitrix-module",
+	"license": "MIT",
+	"keywords": [
+		"bitrix",
+		"Bitrix24",
+		"local-module",
+		"sync",
+		"import",
+		"agent"
+	],
+	"homepage": "https://github.com/bx-shef/insync",
+	"authors": [
+		{
+			"name": "Igor Shevchik",
+			"email": "offer@bx-shef.by",
+			"homepage": "https://bx-shef.by/"
+		}
+	],
+	"support": {
+		"issues": "https://github.com/bx-shef/insync/issues",
+		"source": "https://github.com/bx-shef/insync"
+	},
+	"minimum-stability": "stable",
+	"require": {
+		"php": ">=8.2.0",
+		"ext-mbstring": "*",
+		"ext-xmlreader": "*",
+		"composer/installers": "^1.0 || ^2.0",
+		"bxshef/options": "^3.0",
+		"bxshef/problems": "^2.0",
+		"sbwerewolf/xml-navigator": "~7.2.9"
+	},
+	"extra": {
+		"installer-name": "shef.insync",
+		"branch-alias": {
+			"dev-main": "2.x-dev"
+		}
+	}
+}

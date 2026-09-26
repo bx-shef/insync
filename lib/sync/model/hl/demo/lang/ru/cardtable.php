@@ -1,0 +1,4 @@
+<?php
+$MESS['CARDS_ENTITY_ID_FIELD'] = 'ID';
+$MESS['CARDS_ENTITY_UF_XML_ID_FIELD'] = 'Код карты';
+$MESS['CARDS_ENTITY_UF_SUM_FIELD'] = 'Сумма покупок';
