@@ -159,6 +159,10 @@ final class Manager
 	/**
 	 * Ищет агенты с одинаковым названием
 	 *
+	 * Параметры восстанавливаются из строки агента — см. parseName(): это
+	 * разбор строки, а не исполнение, и на него не стоит полагаться сверх
+	 * показа в интерфейсе.
+	 *
 	 * @param Entity $agent
 	 * @return array|Entity[]
 	 * @throws ObjectException
@@ -175,51 +179,21 @@ final class Manager
 		$cursor = CAgent::GetList([], $filter);
 		while($curAgent = $cursor->Fetch())
 		{
-			$paramsList = [];
-			[$name, $params] = explode('([', $curAgent['NAME']);
-			$params = trim(str_replace(['\'', '"', '])', ';'], '',$params));
-			if(mb_strlen($params) > 0)
-			{
-				$params = explode(',', $params);
-				
-				foreach($params as $param)
-				{
-					$tmp = explode('=>', $param);
-					if(is_set($tmp[1]))
-					{
-						$key = trim($tmp[0]);
-						$value = trim($tmp[1]);
-						$paramsList[$key] = $value;
-					}
-					else
-					{
-						$value = trim($tmp[1]);
-						$paramsList[] = $value;
-					}
-				}
-			}
+			[$name, $paramsList] = static::parseName((string)$curAgent['NAME']);
 
 			$entity = (new Entity(
 				(string)$curAgent['MODULE_ID'],
-				(string)$name,
+				$name,
 				$paramsList,
-				$curAgent['IS_PERIOD'] === 'Y',
-				(int)$curAgent['AGENT_INTERVAL'],
-				(int)$curAgent['SORT'],
-				(int)$curAgent['USER_ID']
+				($curAgent['IS_PERIOD'] ?? 'N') === 'Y',
+				(int)($curAgent['AGENT_INTERVAL'] ?? 0),
+				(int)($curAgent['SORT'] ?? 100),
+				(int)($curAgent['USER_ID'] ?? 0)
 			))
 				->setId((int)$curAgent['ID'])
-				->setIsActive($curAgent['ACTIVE'] === 'Y')
-				->setLastExec(
-					$curAgent['LAST_EXEC']
-					? new DateTime($curAgent['LAST_EXEC'], 'd.m.Y H:i:s')
-					: null
-				)
-				->setNextExec(
-					$curAgent['NEXT_EXEC']
-					? new DateTime($curAgent['NEXT_EXEC'], 'd.m.Y H:i:s')
-					: null
-				)
+				->setIsActive(($curAgent['ACTIVE'] ?? 'N') === 'Y')
+				->setLastExec(static::parseDateTime($curAgent['LAST_EXEC'] ?? null))
+				->setNextExec(static::parseDateTime($curAgent['NEXT_EXEC'] ?? null))
 				->setOrigin($agent->getOrigin())
 				->setTitle($agent->getTitle())
 				->setDescription($agent->getDescription())
@@ -229,6 +203,187 @@ final class Manager
 		}
 		
 		return $list;
+	}
+	
+	/**
+	 * Разбирает строку агента обратно в имя и параметры.
+	 *
+	 * «Класс::метод(['a'=>'1','b'=>'2']);» → ['Класс::метод', ['a' => '1', 'b' => '2']].
+	 *
+	 * Разбор токенайзером, а не explode: раньше строка резалась по «([» и
+	 * «,», и агент без параметров («Класс::метод();») давал warning
+	 * «Undefined array key 1», запятая или «=>» внутри значения рвали
+	 * параметр, а у параметра без ключа терялось значение. Принимаются только
+	 * строки и числа — ровно то, что пишет Entity::prepareNameForDb().
+	 * Вложенные массивы и выражения пропускаются.
+	 *
+	 * @return array{0: string, 1: array}
+	 */
+	public static function parseName(string $agentName): array
+	{
+		$agentName = trim($agentName);
+		$position = strpos($agentName, '(');
+		if(false === $position)
+		{
+			return [rtrim($agentName, "; \t\n\r"), []];
+		}
+		
+		$name = trim(substr($agentName, 0, $position));
+		$params = [];
+		
+		$depth = 0;
+		$key = null;
+		$value = null;
+		$isValue = false;
+		
+		$flush = static function() use (&$params, &$key, &$value, &$isValue): void
+		{
+			if($isValue)
+			{
+				if(null === $key)
+				{
+					$params[] = $value;
+				}
+				else
+				{
+					$params[$key] = $value;
+				}
+			}
+			
+			$key = null;
+			$value = null;
+			$isValue = false;
+		};
+		
+		foreach(token_get_all('<?php '.substr($agentName, $position)) as $token)
+		{
+			$type = is_array($token) ? $token[0] : $token;
+			
+			if(in_array($type, [T_OPEN_TAG, T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true))
+			{
+				continue;
+			}
+			
+			if('[' === $type || '(' === $type)
+			{
+				$depth++;
+				continue;
+			}
+			
+			if(']' === $type || ')' === $type)
+			{
+				if(2 === $depth)
+				{
+					$flush();
+				}
+				
+				$depth--;
+				continue;
+			}
+			
+			// Интересен только один уровень: [ внутри ( — сам массив параметров.
+			if(2 !== $depth)
+			{
+				continue;
+			}
+			
+			if(',' === $type)
+			{
+				$flush();
+				continue;
+			}
+			
+			if(T_DOUBLE_ARROW === $type)
+			{
+				$key = $isValue ? (string)$value : null;
+				$value = null;
+				$isValue = false;
+				continue;
+			}
+			
+			$scalar = static::parseScalarToken($token);
+			if(null !== $scalar)
+			{
+				$value = $scalar;
+				$isValue = true;
+			}
+		}
+		
+		return [$name, $params];
+	}
+	
+	/**
+	 * Строка или число из токена; остальное — null.
+	 */
+	private static function parseScalarToken(mixed $token): null|string
+	{
+		if(!is_array($token))
+		{
+			return null;
+		}
+		
+		[$type, $text] = $token;
+		
+		if(T_LNUMBER === $type || T_DNUMBER === $type)
+		{
+			return $text;
+		}
+		
+		if(T_CONSTANT_ENCAPSED_STRING !== $type)
+		{
+			return null;
+		}
+		
+		$body = substr($text, 1, -1);
+		
+		return str_starts_with($text, "'")
+			? strtr($body, ['\\\\' => '\\', "\\'" => "'"])
+			: stripcslashes($body);
+	}
+	
+	/**
+	 * Дата из строки CAgent::GetList(): ядро отдаёт её в формате сайта.
+	 *
+	 * Раньше формат был зашит — 'd.m.Y H:i:s', — и на сайте с другим форматом
+	 * даты разбор бросал исключение. Пустое и неразборчивое — null.
+	 */
+	public static function parseDateTime(mixed $value): null|DateTime
+	{
+		if(!is_string($value) || trim($value) === '')
+		{
+			return null;
+		}
+		
+		try
+		{
+			return new DateTime($value);
+		}
+		catch(ObjectException $exception)
+		{
+			return null;
+		}
+	}
+	
+	/**
+	 * Модуль, которому принадлежит агент, либо null — агента нет.
+	 *
+	 * Нужен для проверки прав: включать и выключать агент вправе тот, у кого
+	 * есть права на ЕГО модуль, а не на shef.insync.
+	 */
+	public static function getModuleIdById(int $id): null|string
+	{
+		if($id < 1)
+		{
+			return null;
+		}
+		
+		$agent = CAgent::GetList([], ['ID' => $id])->Fetch();
+		if(!is_array($agent))
+		{
+			return null;
+		}
+		
+		return (string)($agent['MODULE_ID'] ?? '');
 	}
 	
 	/**

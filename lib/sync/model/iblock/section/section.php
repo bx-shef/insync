@@ -8,7 +8,7 @@ use Bitrix\Main\DB\SqlExpression;
 use Bitrix\Main\ORM;
 use Bitrix\Main\Type\Contract\Arrayable;
 use Shef\Options\TraitList;
-use Shef\Insync\Main\Utils;
+use Shef\InSync\Main\Utils;
 
 class Section
 	extends \Bitrix\Iblock\EO_Section
@@ -84,11 +84,12 @@ class Section
 	{
 		if(
 			$parentXmlId === ''
+			&& $this->getIblockSectionId() !== 0
 		)
 		{
 			$this->setIblockSectionId(new SqlExpression('NULL'));
 		}
-		elseif($parentXmlId <> '')
+		elseif($parentXmlId !== '')
 		{
 			/** @var SectionTable $dataClass */
 			$dataClass = static::$dataClass;
@@ -102,7 +103,13 @@ class Section
 			}
 			else
 			{
-				throw new ArgumentException('Not find parent section by xmlId', 'parentXmlId');
+				throw new ArgumentException(
+					sprintf(
+						'Not find parent section by xmlId: %s',
+						$parentXmlId
+					),
+					'parentXmlId'
+				);
 			}
 		}
 		

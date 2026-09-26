@@ -1,6 +1,80 @@
+/*
+ * Раскладка страницы — своя, в несколько правил: сетка и карточки раньше
+ * приходили из shef.uiclear (bootstrap), а зависимость ушла.
+ */
+.sh-insync-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 20px;
+	align-items: flex-start;
+}
+
+.sh-insync-col {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+	min-width: 0;
+}
+
+.sh-insync-col-side {
+	flex: 1 1 320px;
+	max-width: 480px;
+}
+
+.sh-insync-col-main {
+	flex: 2 1 480px;
+}
+
+.sh-insync-card {
+	background: #fff;
+	border-radius: 12px;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, .06);
+}
+
+.sh-insync-card-header {
+	padding: 16px 20px 8px;
+	font-size: 16px;
+	font-weight: 600;
+	color: #333;
+}
+
+.sh-insync-card-body {
+	padding: 8px 20px 16px;
+}
+
+.sh-insync-card-footer {
+	padding: 12px 20px 16px;
+	border-top: 1px solid rgba(220, 226, 230, .5);
+}
+
+.sh-insync-card-footer:empty {
+	display: none;
+}
+
 .pagetitle-below {
 	border-top: 1px solid rgba(220,226,230,.5);
 	padding-bottom: 20px;
+}
+
+.sh-insync-col-full {
+	flex: 1 1 100%;
+}
+
+.sh-insync-agents + .sh-insync-agents {
+	margin-top: 0;
+}
+
+.sh-insync-agent {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+	padding: 6px 0;
+	border-bottom: 1px solid #eff2f5;
+}
+
+.sh-insync-agent:last-child {
+	border-bottom: none;
 }
 
 #sh-template .main-grid-cell-content,

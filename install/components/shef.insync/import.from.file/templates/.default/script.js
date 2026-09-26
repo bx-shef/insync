@@ -22,7 +22,8 @@ BX.ShInSync.ImportFromFileController.prototype = {
 		this.response = BX(this.params.responseId || 'notSet');
 		this.responseErrorId = BX(this.params.responseErrorId || 'notSet');
 
-		this.loader = BX.ShUiClear.Loader.create();
+		// Штатный загрузчик ядра (расширение main.loader) поверх формы.
+		this.loader = new BX.Loader({ target: BX('sh-template') || document.body });
 
 		this.bind();
 		this._log('init', true);
@@ -48,7 +49,7 @@ BX.ShInSync.ImportFromFileController.prototype = {
 		this.renderResult('');
 		this.renderResultError('');
 		
-		this.loader.fade();
+		this.loader.show();
 
 		return this.callMethod(action, params)
 		.then(function(response)
@@ -56,12 +57,12 @@ BX.ShInSync.ImportFromFileController.prototype = {
 			this.renderResult((response.data || {}).content || '?');
 			this.renderResultError((response.data || {}).errors || '');
 			this.form.reset();
-			this.loader.unFade();
+			this.loader.hide();
 		}.bind(this))
 		.catch(function(error)
 		{
 			this.form.reset();
-			this.loader.unFade();
+			this.loader.hide();
 			BX.UI.Notification.Center.notify({
 				content: error,
 				category: this.params.component + '-error',
@@ -78,19 +79,23 @@ BX.ShInSync.ImportFromFileController.prototype = {
 	{
 		this.responseErrorId.innerHTML = content;
 	}
-	, getDemoFile: function(event, module, className)
+	, getDemoFile: function(event)
 	{
 		event = event || (event = window.event);
 		event.preventDefault();
 		event.stopPropagation();
 		event.stopImmediatePropagation();
 		
-		let action = 'getDemoFile';
-		
-		let url = '/bitrix/services/main/ajax.php?mode=class&c='+(this.params.component || '?')+'&action='+action;
-		url = url+'&sessid='+BX.bitrix_sessid();
-		url = url+'&module='+(module || null);
-		url = url+'&className='+(className || null);
+		// Модуль и класс — из конфигурации страницы, а не из разметки: там
+		// они были строкой внутри onclick и не экранировались.
+		let url = '/bitrix/services/main/ajax.php?' + [
+			'mode=class',
+			'c=' + encodeURIComponent(this.params.component || '?'),
+			'action=getDemoFile',
+			'sessid=' + encodeURIComponent(BX.bitrix_sessid()),
+			'module=' + encodeURIComponent(this.params.module || ''),
+			'className=' + encodeURIComponent(this.params.className || '')
+		].join('&');
 		
 		window.open(url, '_blank');
 		return false;
@@ -116,7 +121,7 @@ BX.ShInSync.ImportFromFileController.prototype = {
 		})
 		.catch(function(responseError)
 		{
-			promise.reject('Error: ' + ((responseError.errors || [])[0] || {}).message || '?');
+			promise.reject('Error: ' + ((((responseError.errors || [])[0] || {}).message) || '?'));
 		});
 
 		return promise;

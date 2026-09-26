@@ -85,7 +85,7 @@ interface IElement
 	 */
 	public function saveInterface(): ORM\Data\AddResult|ORM\Data\UpdateResult|ORM\Data\Result;
 	/**
-	 * save Entity
+	 * delete Entity
 	 * @return ORM\Data\DeleteResult|ORM\Data\Result
 	 */
 	public function deleteInterface(): ORM\Data\DeleteResult|ORM\Data\Result;

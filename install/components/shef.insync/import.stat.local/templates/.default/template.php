@@ -24,13 +24,24 @@ Extension::load([
 	'ui.buttons.icons',
 	'ui.notification',
 	'ui.dialogs.messagebox',
+	'ui.alerts',
+	'main.loader',
 	'ajax',
-	'shef-uiclear.bx-loader',
-	'shef-uiclear.bootstrap',
-	'shef-uiclear.grid',
-	'shef-uiclear.bootstrap-card',
 	'shef-insync.ui-anchors'
 ]);
+
+/**
+ * Сообщение в штатной плашке ui.alerts. Текст — BB-код языкового файла,
+ * CTextParser сам экранирует HTML. Была _showError(), которой нет ни в одном
+ * модуле линейки: страница падала бы с «Call to undefined function».
+ */
+$showAlert = static function(string $bbCode, string $type = 'ui-alert-warning'): void
+{
+	$parser = new \CTextParser();
+	echo '<div class="ui-alert ui-alert-xs ', $type, '"><span class="ui-alert-message">',
+		$parser->convertText($bbCode),
+		'</span></div>';
+};
 
 Loc::loadMessages(__FILE__);
 
@@ -67,9 +78,13 @@ foreach($arResult['ROWS'] as $index => $data)
 		),
 	);
 	
+	// Значения ячеек грид выводит как HTML.
 	$arResult['ROWS'][$index] = [
 		'id' => $key,
-		'columns' => $data,
+		'columns' => array_map(
+			static fn(mixed $value): mixed => is_string($value) ? htmlspecialcharsbx($value) : $value,
+			$data
+		),
 		'actions' => $actions
 	];
 }
@@ -105,30 +120,27 @@ $this->SetViewTarget('pagetitle', 100);
 		<span><?=Loc::getMessage('BTN_RELOAD');?></span>
 	</button>
 <?php $this->EndViewTarget();?>
-<div id="sh-template" class="g-5">
+<div id="sh-template" class="sh-insync-grid">
 	<?php if(count($arResult['ERRORS']) > 0):?>
-	<div class="row g-5 mb-4"><div class="col-12 order-0">
+	<div class="sh-insync-col sh-insync-col-full">
 		<?php foreach($arResult['ERRORS'] as $error):
-			_showError($error);
+			$showAlert((string)$error, 'ui-alert-danger');
 		endforeach;?>
-	</div></div>
+	</div>
 	<?php endif;?>
-	<div class="row mb-5 g-5">
-		<div class="col-md-6 col-sm-12 order-0">
-			<?php $grid->include();?>
-			<div class="sh-info mt-5">
-				<?php _showError(implode(PHP_EOL, [
-					Loc::getMessage('NOTE_TBL_IMPORT'),
-					'',
-					Loc::getMessage('NOTE_LIST_AGENTS'),
-				]), 'warningtext');?>
-			</div>
+	<div class="sh-insync-col sh-insync-col-main">
+		<?php $grid->include();?>
+		<div class="sh-info">
+			<?php $showAlert(implode(PHP_EOL, [
+				Loc::getMessage('NOTE_TBL_IMPORT'),
+				'',
+				Loc::getMessage('NOTE_LIST_AGENTS'),
+			]));?>
 		</div>
-		<div class="col-md-6 col-sm-12 order-1">
-			<div id="<?=$confJs['agentListId'];?>">
-				<?php include 'agentList.php';?>
-			</div>
-			
+	</div>
+	<div class="sh-insync-col sh-insync-col-main">
+		<div id="<?=$confJs['agentListId'];?>">
+			<?php include 'agentList.php';?>
 		</div>
 	</div>
 </div>

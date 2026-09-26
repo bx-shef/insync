@@ -17,7 +17,8 @@ BX.ShInSync.ImportStatController.prototype = {
 		this.gridId = this.params.gridId || '';
 		this.agentListId = BX(this.params.agentListId || 'notSet');
 		
-		this.loader = BX.ShUiClear.Loader.create();
+		// Штатный загрузчик ядра (расширение main.loader) поверх страницы.
+		this.loader = new BX.Loader({ target: BX('sh-template') || document.body });
 		
 		this.bind();
 		this._log('init', true);
@@ -43,10 +44,7 @@ BX.ShInSync.ImportStatController.prototype = {
 	
 	, reload: function(event)
 	{
-		event = event || (event = window.event);
-		event.preventDefault();
-		event.stopPropagation();
-		event.stopImmediatePropagation();
+		this.stopEvent(event);
 		
 		this.reloadGrid();
 		this.reloadAgentsList();
@@ -56,10 +54,7 @@ BX.ShInSync.ImportStatController.prototype = {
 	
 	, reloadGrid: function(event)
 	{
-		event = event || (event = window.event);
-		event.preventDefault();
-		event.stopPropagation();
-		event.stopImmediatePropagation();
+		this.stopEvent(event);
 		
 		// @memo: need sync agents too ////
 		BX.Main.gridManager.reload(this.gridId);
@@ -69,10 +64,7 @@ BX.ShInSync.ImportStatController.prototype = {
 	
 	, onStopAgent: function(event, agentId)
 	{
-		event = event || (event = window.event);
-		event.preventDefault();
-		event.stopPropagation();
-		event.stopImmediatePropagation();
+		this.stopEvent(event);
 
 		let action = 'stopAgent',
 			params = {
@@ -80,7 +72,7 @@ BX.ShInSync.ImportStatController.prototype = {
 			}
 		;
 		
-		this.loader.fade();
+		this.loader.show();
 
 		this.callMethod(action, params)
 		.then(function (response)
@@ -89,7 +81,7 @@ BX.ShInSync.ImportStatController.prototype = {
 		}.bind(this))
 		.catch(function (error)
 		{
-			this.loader.unFade();
+			this.loader.hide();
 			this.reload();
 
 			BX.UI.Notification.Center.notify({
@@ -104,10 +96,7 @@ BX.ShInSync.ImportStatController.prototype = {
 
 	, onStartAgent: function(event, agentId)
 	{
-		event = event || (event = window.event);
-		event.preventDefault();
-		event.stopPropagation();
-		event.stopImmediatePropagation();
+		this.stopEvent(event);
 
 		let action = 'startAgent',
 			params = {
@@ -115,7 +104,7 @@ BX.ShInSync.ImportStatController.prototype = {
 			}
 		;
 		
-		this.loader.fade();
+		this.loader.show();
 
 		this.callMethod(action, params)
 		.then(function (response)
@@ -124,7 +113,7 @@ BX.ShInSync.ImportStatController.prototype = {
 		}.bind(this))
 		.catch(function (error)
 		{
-			this.loader.unFade();
+			this.loader.hide();
 			this.reload();
 
 			BX.UI.Notification.Center.notify({
@@ -143,17 +132,17 @@ BX.ShInSync.ImportStatController.prototype = {
 			params = {}
 		;
 		
-		this.loader.fade();
+		this.loader.show();
 
 		this.callMethod(action, params)
 		.then(function (response)
 		{
 			this.renderAgentsList(response?.data?.content || '');
-			this.loader.unFade();
+			this.loader.hide();
 		}.bind(this))
 		.catch(function (error)
 		{
-			this.loader.unFade();
+			this.loader.hide();
 
 			BX.UI.Notification.Center.notify({
 				content: error,
@@ -178,17 +167,17 @@ BX.ShInSync.ImportStatController.prototype = {
 			}
 		;
 		
-		this.loader.fade();
+		this.loader.show();
 		
 		this.callMethod(action, params)
 			.then(function (response)
 			{
 				this.reloadGrid();
-				this.loader.unFade();
+				this.loader.hide();
 			}.bind(this))
 			.catch(function (error)
 			{
-				this.loader.unFade();
+				this.loader.hide();
 				this.reloadGrid();
 				
 				BX.UI.Notification.Center.notify({
@@ -222,13 +211,29 @@ BX.ShInSync.ImportStatController.prototype = {
 		})
 		.catch(function(responseError)
 		{
-			promise.reject('Error: ' + ((responseError.errors || [])[0] || {}).message || '?');
+			promise.reject('Error: ' + ((((responseError.errors || [])[0] || {}).message) || '?'));
 		});
 		
 		return promise;
 	}
 	// endregion ////
 	// region Tools ////
+	/**
+	 * reload() и reloadGrid() зовутся и из обработчиков кнопок, и без
+	 * события — из onPullEvent и после ajax. Раньше без события падали на
+	 * event.preventDefault(): window.event вне обработчика не определён.
+	 */
+	, stopEvent: function(event)
+	{
+		if(!event || typeof event.preventDefault !== 'function')
+		{
+			return;
+		}
+		
+		event.preventDefault();
+		event.stopPropagation();
+		event.stopImmediatePropagation();
+	}
 	, _log: function(value, allTime = false)
 	{
 		if(this.isDebug || allTime)

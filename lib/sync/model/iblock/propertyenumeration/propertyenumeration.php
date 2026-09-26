@@ -6,7 +6,7 @@ use Bitrix\Iblock\EO_PropertyEnumeration;
 use Bitrix\Main\ArgumentException;
 use Bitrix\Main\Type\Contract\Arrayable;
 use Bitrix\Main\ORM;
-use Shef\Insync\Main\Utils;
+use Shef\InSync\Main\Utils;
 
 class PropertyEnumeration
 	extends EO_PropertyEnumeration

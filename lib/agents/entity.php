@@ -2,6 +2,7 @@
 
 namespace Shef\InSync\Agents;
 
+use Bitrix\Main\ArgumentException;
 use Bitrix\Main\ObjectException;
 use Bitrix\Main\Type\Contract\Arrayable;
 use Bitrix\Main\Type\DateTime;
@@ -91,16 +92,8 @@ class Entity
 			$this->setPeriod((int)$curAgent['AGENT_INTERVAL']);
 			$this->setSort((int)$curAgent['SORT']);
 			$this->setUserId((int)$curAgent['USER_ID']);
-			$this->setLastExec(
-			$curAgent['LAST_EXEC']
-				? new DateTime($curAgent['LAST_EXEC'], 'd.m.Y H:i:s')
-				: null
-			);
-			$this->setNextExec(
-			$curAgent['NEXT_EXEC']
-				? new DateTime($curAgent['NEXT_EXEC'], 'd.m.Y H:i:s')
-				: null
-			);
+			$this->setLastExec(Manager::parseDateTime($curAgent['LAST_EXEC'] ?? null));
+			$this->setNextExec(Manager::parseDateTime($curAgent['NEXT_EXEC'] ?? null));
 		}
 		
 		unset($curAgent, $cursor, $filter);
@@ -252,12 +245,33 @@ class Entity
 	// endregion ////
 
 	// region Tools ////
+	/**
+	 * Строка агента для b_agent: «Класс::метод(['ключ'=>'значение']);».
+	 *
+	 * Ядро исполняет её как PHP-код, поэтому ключи и значения экранируются
+	 * var_export(). Раньше они вставлялись как есть: кавычка в значении
+	 * ломала агент, а значение, пришедшее снаружи, становилось кодом. Для
+	 * значений без кавычек и обратных слэшей строка та же, что и до 2.0.0, —
+	 * агенты, уже лежащие в b_agent, находятся по имени, как находились.
+	 *
+	 * Параметры — только скаляры: их же разбирает обратно Manager::parseName().
+	 *
+	 * @throws ArgumentException параметр не скаляр
+	 */
 	final public function prepareNameForDb(): string
 	{
 		$agentParams = [];
 		foreach($this->getParams()->toArray() as $key => $value)
 		{
-			$agentParams[] = "'$key'=>'$value'";
+			if(null !== $value && !is_scalar($value))
+			{
+				throw new ArgumentException(
+					sprintf('Agent param "%s" must be scalar, %s given', $key, get_debug_type($value)),
+					'params'
+				);
+			}
+			
+			$agentParams[] = var_export((string)$key, true).'=>'.var_export((string)$value, true);
 		}
 
 		return $this->getName().'(['.implode(',', $agentParams).']);';

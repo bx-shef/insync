@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Shef\Insync\Main\Options\Import\FromFile\Model;
+namespace Shef\InSync\Main\Options\Import\FromFile\Model;
 
 use Bitrix\Main\Type\Contract\Arrayable;
 

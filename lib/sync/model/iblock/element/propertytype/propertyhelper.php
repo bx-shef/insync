@@ -3,7 +3,7 @@
 namespace Shef\InSync\Sync\Model\IBlock\Element\PropertyType;
 
 use Bitrix\Main\DB\SqlExpression;
-use Shef\Insync\Main\Utils;
+use Shef\InSync\Main\Utils;
 
 class PropertyHelper
 {
@@ -52,9 +52,15 @@ class PropertyHelper
 		string $code
 	): null|array
 	{
-		static $list;
-		if(null === $list[$iblockId][$code])
+		// Свойства инфоблока читаются один раз на инфоблок. Было
+		// «null === $list[$iblockId][$code]»: warning на первом же вызове
+		// (ключа нет), а свойство, которого нет, перечитывало весь список
+		// свойств на каждом обращении.
+		static $list = [];
+		if(!isset($list[$iblockId]))
 		{
+			$list[$iblockId] = [];
+			
 			$rows = \Bitrix\Iblock\PropertyTable::getList([
 				'filter' => [
 					'=IBLOCK_ID' => $iblockId
@@ -92,6 +98,6 @@ class PropertyHelper
 			unset($rows);
 		}
 		
-		return $list[$iblockId][$code] ?: null;
+		return $list[$iblockId][$code] ?? null;
 	}
 }

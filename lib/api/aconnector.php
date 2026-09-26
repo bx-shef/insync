@@ -142,7 +142,8 @@ abstract class AConnector
 		$info->send->method = $method;
 		$info->send->url = $url;
 		$info->send->params = $params;
-		$info->send->headers = $headers;
+		// В лог уходит $info целиком: заголовки авторизации — только маской.
+		$info->send->headers = static::maskHeaders($headers);
 		
 		$info->data = null;
 		
@@ -178,7 +179,18 @@ abstract class AConnector
 				{
 					$result->addErrors($response->getErrors());
 				}
-				$result->addError(new Error(implode(';', $this->httpClient->getError())));
+				
+				// Ошибки соединения. Их нет, когда сервер ответил, просто не
+				// 200, — раньше и тогда добавлялась ошибка с пустым текстом.
+				$transportErrors = $this->httpClient->getError();
+				if(!empty($transportErrors))
+				{
+					$result->addError(new Error(implode(';', $transportErrors)));
+				}
+				elseif($result->isSuccess())
+				{
+					$result->addError(new Error('status: '.$this->httpClient->getStatus()));
+				}
 			}
 			
 			
@@ -207,6 +219,16 @@ abstract class AConnector
 		}
 		
 		return $result->setData($info->toArray());
+	}
+	
+	/**
+	 * Заголовки для лога: значения секретных заменены маской.
+	 *
+	 * @see Headers::mask()
+	 */
+	public static function maskHeaders(array $headers): array
+	{
+		return Headers::mask($headers);
 	}
 	
 	protected function getHttpClient(): null|HttpClient

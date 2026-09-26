@@ -1,51 +1,67 @@
-# Импорт
-Реализован механизм `\Shef\InSync\Sync\IProcess` импорта через таблицу импорта `\Shef\InSync\Sync\Model\SyncTable`.
+# [`\Shef\InSync\Sync`] Импорт
+
+Импорт идёт в два шага через таблицу импорта `\Shef\InSync\Sync\Model\SyncTable`
+(`shef_insync_model`):
+
+1. **процесс** (`\Shef\InSync\Sync\IProcess`) забирает данные — из файла,
+   из CRM, из API — и складывает строки в таблицу импорта;
+2. **агент разбора** (`\Shef\InSync\Sync\FromFile\AAgent`) берёт строки из
+   таблицы пачками и разносит по сущностям. Сколько брать и что делать с
+   ошибочными строками, решает стратегия
+   (`\Shef\InSync\Sync\FromFile\Strategy\IStrategy`).
 
 > Пример смотреть в модуле **[shef.demosync](https://marketplace.1c-bitrix.ru/solutions/shef.demosync/)**
 
-Очистить программно таблицу импорта можно так:
+## Процессы
+
+| класс | что это | примечание |
+|---|---|---|
+| FromFile\AFileProcess | абстракция импорта файла | каталоги, движение файла, строки в таблицу |
+| FromFile\ACsvProcess | импорт CSV | разделитель, заголовок, карта колонок |
+| FromFile\AXmlProcess | импорт XML | потоково, по тегу элемента, см. [Парсинг XML](4_xml.md) |
+| Crm\ACrmProcess | строки из сущностей CRM | проходит по типу сущности CRM |
+
+## Агент разбора и стратегии
+
+| класс | что делает |
+|---|---|
+| FromFile\AAgent | берёт строки своего импорта, помечает «в работе», зовёт `processRow()`, успешные удаляет |
+| FromFile\Strategy\Simple | берёт все строки; ошибочные остаются и будут взяты снова |
+| FromFile\Strategy\MarkFail | ошибочные помечает маркером `.error` в коде импорта; берутся снова |
+| FromFile\Strategy\HideFail | ошибочные помечает и больше не берёт |
+
+`\Shef\InSync\Sync\FromFile\AAgent::actionRabbitMq()` — та же обработка для
+строк, переданных снаружи (очередь сообщений), а не выбранных из таблицы.
+
+Статусы строк — `\Shef\InSync\Sync\EStatus`: `U` — не определён, `N` — новая,
+`P` — в работе, `S` — успешно, `F` — ошибка.
+
+Очистить таблицу импорта из кода:
+
 ```php
-<?php
-//title: Model\SyncCollection::clear()
-  \Bitrix\Main\Loader::includeModule('shef.insync');
-  $syncCollection = \Shef\InSync\Sync\Model\SyncTable::createCollection();
-  $importCode = 'ShefDemosyncFromFileCsv';
-  $syncCollection->clear($importCode);
-  $response = $syncCollection->getStatistic();
-  \Shef\Problems\Logger::PrHtml->getLogger()->debug($response);
-?>
+\Bitrix\Main\Loader::includeModule('shef.insync');
+$collection = \Shef\InSync\Sync\Model\SyncTable::createCollection();
+$collection->clear('ShefDemosyncFromFileCsv');   // строки одного импорта
+$statistic = $collection->getStatistic();
 ```
 
-Суть на примере импорта через файл:
+## Каталоги для файлов
 
-1. Обработчик `\Shef\InSync\Sync\IProcess` забирает данные и складывает в таблицу
-2. Обработчик `\Shef\InSync\Sync\FromFile\AAgent` берет данные из таблицы, и разносит по сущностям, используя стратегию  `\Shef\InSync\Sync\FromFile\Strategy\IStrategy` выборки и обработки плохих элементов
-
-|                                     Класс | Описание                               | Примечание                      |
-|------------------------------------------:|:---------------------------------------|:--------------------------------|
-|  `\Shef\InSync\Sync\FromFile\ACsvProcess` | Абстракция для импорта CSV             | Можно передать несколько файлов |
-| `\Shef\InSync\Sync\FromFile\AFileProcess` | Абстракция для Импорта XML             | Можно передать несколько файлов |
-|       `\Shef\InSync\Sync\Crm\ACrmProcess` | Абстракция для обработки сущностей CRM | Проходится по типу сущности CRM |
-
-## Папки для хранения файлов
-Файлы нужно сохранять в папку указанную в `\Shef\InSync\Sync\FromFile\AFileProcess::getImportFolder`.
-
-По умолчанию это **/upload/import/{getOriginatorId}/**. 
-
-У файла должен быть суфикс. Пример `cart-xxx.xml`.
+Файлы кладутся в каталог `\Shef\InSync\Sync\FromFile\AFileProcess::getImportFolder()`,
+по умолчанию **/upload/import/{код импорта}/**. У файла должен быть суффикс —
+например, `cart-xxx.xml`: `getExistFiles()` ищет файлы по началу имени.
 
 > Картинки стоит так же выкладывать в эту папку, например в подпапку **img**.
-> 
-> Пример реализации `\Shef\Demosync\FromFile\Xml\IBlock\Element\XmlProcess::getImagePath`.
 
-После обработки файл перемещается в папку **/upload/import/copy/{getOriginatorId}/**.
-> В настройках модуля можно указать сколько дней хранить здесь файл.
-> 
-> По-умолчанию: 3 дня
-> 
-> Агент может переопределить это время.
+После обработки файл переезжает в **/upload/import/copy/{код импорта}/**, при
+проблеме — в **/upload/import/problem/{код импорта}/**. Имя архивного файла —
+`done_<код>_<дата>_<случайный хвост>.<расш>`: каталоги под корнем сайта, и
+предсказуемое имя позволяло бы скачать выгрузку, см. [security.md](security.md).
 
-Если будет при обработке проблема, то файл будет перемещается в папку **/upload/import/problem/{getOriginatorId}/**.
+> Сколько дней хранить файлы в архиве, задаётся в настройках модуля, по
+> умолчанию 3 дня. Агент может переопределить срок (`getMaxDayOffDoneFile()`).
+
+Загрузить файл руками — страница импорта из файла, см. [Компоненты](5_components.md).
 
 ## Модели
 В модуле приследуется цель работать со сущностями Битрикс только через ORM.
@@ -53,9 +69,9 @@
 По этой причине созданы необходимые для работы модели и аннотации к ним.
 Все остальные модели/аннотации в Битрикс уже присутствуют.
 
-> Аннотацию для модели собирать через [механизм Бирикс](https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=43&LESSON_ID=11733):
+> Аннотацию для модели собирать через [механизм Битрикс](https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=43&LESSON_ID=11733):
 > ```shell
-> php bitrix.php orm:annotate -m shef.insync /home/bitrix/www/bitrix/modules/shef.insync/meta/orm.php
+> php bitrix.php orm:annotate -m shef.insync <путь к модулю>/meta/orm.php
 > ```
 >
 > Или использовать `shef-cli`, если он доступен:
@@ -63,7 +79,7 @@
 > shef-cli module:annotate shef.insync
 > ```
 >
-> Потом по своим сущностям разнести в `model/meta/orm.php`
+> Аннотации лежат в одном `meta/orm.php` в корне модуля — как у модулей ядра.
 
 ### [`\Shef\InSync\Sync\Model\SyncTable`] Таблица синхронизации
 Работает через модель `EO_`,  поддерживает interface `\Shef\InSync\Sync\IElement`. 
@@ -76,11 +92,17 @@
 ### [`\Shef\InSync\Sync\Model\IBlock\*`] Инфоблоки
 Добавили в `*Table` поддержку IblockId.
 
-Работает через модель `EO_`, для работы с сущностями инфоблоков, поддерживает интерфейсы `Model\IBlock\IBlockId`, `Model\IBlock\IFixGetList`.
+Работает через модель `EO_`, для работы с сущностями инфоблоков, поддерживает интерфейсы `Model\IBlock\IIBlockId`, `Model\IBlock\IFixGetList`.
 
 * разделы `Model\IBlock\Section`
 * элементы `Model\IBlock\Element`
 * перечисления для свойства типа список `Model\IBlock\PropertyEnumeration`
+
+Свойства элемента по коду — трейт `\Shef\InSync\Sync\Model\IBlock\Element\PropertyTrait`
+для драйвера или процесса импорта: строка, число, флажок, файл, список
+(`getPropertyEnum()` и `getEnum()` — найти значение списка по XML_ID или по
+значению без учёта регистра, нет — создать). Описание свойства читается один
+раз на импорт; класс задаёт `static::$dataClass` — свой `*Table` инфоблока.
 
 > Для использования аннотаций на конкретный инфоблок нужно:
 >
@@ -124,4 +146,6 @@
 |  `Driver\Amount` |                        | Остатки по складам                                                                                          |
 
 
-[← Агенты](docs/1_agents.md) | [↑ Содержание](README.md) | [API →](docs/3_api.md)
+---
+
+[← Агенты](1_agents.md) | [↑ Содержание](../README.md) | [API →](3_api.md)

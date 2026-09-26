@@ -13,6 +13,7 @@ use Bitrix\Main\ORM\Objectify\EntityObject as OrmEntityObject;
 use Bitrix\Main\Result;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\SystemException;
+use Shef\Options\Options\SmartStd;
 use Shef\Problems;
 use Shef\InSync\Sync\IElement;
 use Shef\InSync\Agents;
@@ -92,6 +93,15 @@ abstract class AAgent
 		
 		$result = new Result();
 		
+		// Результаты обработки строк — для вызывающего (например, шаг
+		// импорта со страницы настроек). processRow() кладёт свой в
+		// data['data']->result.
+		$data = new SmartStd();
+		$data->results = [];
+		$result->setData([
+			'data' => $data
+		]);
+		
 		// region Get Items From SyncTable ////
 		$conf = $this->strategy->getListConf(
 			static::getOriginatorId(),
@@ -127,6 +137,7 @@ abstract class AAgent
 			try
 			{
 				$response = $this->processRow($row);
+				$data->results[] = static::getRowResult($response);
 				if(!$response->isSuccess())
 				{
 					$result->addErrors($response->getErrors());
@@ -187,6 +198,100 @@ abstract class AAgent
 		Sync\Integration\Manager::sendPullForImportStatLocal();
 		
 		return $result;
+	}
+	
+	/**
+	 * Обработка строк, переданных снаружи, а не выбранных из таблицы импорта.
+	 *
+	 * Пришёл из рабочей копии 1.2.12: так строки отдаёт очередь сообщений
+	 * (модуль shef.rabbitmq). Строки не удаляются из таблицы и не
+	 * сохраняются — только помечаются статусом и сообщением; что с ними делать
+	 * дальше, решает вызывающий.
+	 *
+	 * @todo make collection
+	 *
+	 * @param IElement[] $listRows
+	 */
+	public function actionRabbitMq(array $listRows): Result
+	{
+		$result = new Result();
+		
+		// region Init Items ////
+		foreach($listRows as $row)
+		{
+			if(!($row instanceof IElement))
+			{
+				throw new LogicException('$row not implement IElement');
+			}
+			
+			$this->prepareSyncByRow($row);
+		}
+		// endregion ////
+		
+		// region Process Items ////
+		foreach($listRows as $row)
+		{
+			try
+			{
+				$response = $this->processRow($row);
+				$responseResult = static::getRowResult($response);
+				
+				if(!$response->isSuccess())
+				{
+					$result->addErrors($response->getErrors());
+					
+					$row->setInterfaceStatus(Sync\EStatus::Fail);
+					$row->setInterfaceMessage(implode(';', $response->getErrorMessages()));
+				}
+				elseif($responseResult instanceof Result)
+				{
+					$row->setInterfaceMessage(
+						$responseResult->isSuccess()
+							? implode(';', (array)(($responseResult->getData()['data'] ?? null)?->results ?? []))
+							: implode(';', $responseResult->getErrorMessages())
+					);
+				}
+				
+				unset($response, $responseResult);
+			}
+			catch(Throwable $throwable)
+			{
+				$error = Problems\Throwable\Manager::buildError($throwable, true);
+				$result->addError($error);
+				$row->setInterfaceStatus(Sync\EStatus::Fail);
+				$row->setInterfaceMessage($error->getMessage());
+				
+				unset($error);
+			}
+		}
+		// endregion ////
+		
+		// region Debug ////
+		if($this->isDebug())
+		{
+			$this->debugger->debug(
+				'RabbitMq action result',
+				[
+					'items' => $listRows
+				]
+			);
+		}
+		// endregion ////
+		
+		Sync\Integration\Manager::sendPullForImportStatLocal();
+		
+		return $result;
+	}
+	
+	/**
+	 * Результат строки из ответа processRow(): data['data']->result, если он
+	 * там есть. Без ключа — null, а не warning.
+	 */
+	protected static function getRowResult(Result $response): mixed
+	{
+		$data = $response->getData()['data'] ?? null;
+		
+		return is_object($data) ? ($data->result ?? null) : null;
 	}
 	
 	/**

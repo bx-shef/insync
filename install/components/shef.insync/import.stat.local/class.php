@@ -12,15 +12,27 @@ use Shef\Options\Options\SmartStd;
 use Shef\Options\Main\Utils as OptionsUtils;
 use Shef\InSync\Main\Constants;
 use Shef\InSync\Agents;
+use Shef\InSync\Main\Access;
 use Bitrix\Main\ObjectException;
 
 Loc::loadMessages(__FILE__);
 
+// Базовый класс — из shef.options: без него класс компонента не объявить.
+// Ошибку покажет страница («… is not a component»), а не die() посреди вывода.
 if(!\Bitrix\Main\Loader::includeModule('shef.options'))
 {
-	die('Can\'t include module shef.options');
+	return;
 }
 
+/**
+ * Статистика таблицы импорта и агенты импорта.
+ *
+ * Страница — администратору либо с правом «W» на shef.insync; кнопки агентов
+ * — тому, у кого есть права на модуль агента. Всё проверяется и в
+ * ajax-действиях: до 2.0.0 они требовали только входа на портал, и любой
+ * сотрудник включал и выключал любой агент портала по ID и чистил таблицу
+ * импорта.
+ */
 class ShefInSyncImportStatLocalComponent
 	extends Components\AControllerable
 {
@@ -55,9 +67,8 @@ class ShefInSyncImportStatLocalComponent
 			return null;
 		}
 		
-		if($id < 1)
+		if(!$this->checkAgentAccess($id))
 		{
-			$this->addError(new Error('Empty agent id'));
 			return null;
 		}
 		
@@ -79,9 +90,8 @@ class ShefInSyncImportStatLocalComponent
 			return null;
 		}
 		
-		if($id < 1)
+		if(!$this->checkAgentAccess($id))
 		{
-			$this->addError(new Error('Empty agent id'));
 			return null;
 		}
 
@@ -127,16 +137,20 @@ class ShefInSyncImportStatLocalComponent
 			return null;
 		}
 		
-		$originatorId = $rowData['originatorId'] ?: '';
-		if((string)$originatorId === '')
+		// Ошибка — выход. Раньше ошибка добавлялась, а удаление шло дальше:
+		// без кода импорта clear() стирал строки ВСЕХ импортов.
+		$originatorId = trim((string)($rowData['originatorId'] ?? ''));
+		if($originatorId === '')
 		{
 			$this->addError(new Error('Wrong originatorId'));
+			return null;
 		}
 		
-		$dateInsert = (int)($rowData['dateInsertTs'] ?: 0);
+		$dateInsert = (int)($rowData['dateInsertTs'] ?? 0);
 		if($dateInsert < 1)
 		{
 			$this->addError(new Error('Wrong dateInsertTs'));
+			return null;
 		}
 		
 		$dateInsert = \Bitrix\Main\Type\DateTime::createFromTimestamp($dateInsert);
@@ -175,6 +189,38 @@ class ShefInSyncImportStatLocalComponent
 	protected function initParams(): void
 	{
 		$this->arParams['GRID_ID'] = $this->arParams['GRID_ID'] ?? static::GRID_ID;
+	}
+	
+	/**
+	 * Права — и для страницы, и для каждого ajax-действия.
+	 */
+	protected function checkRequiredParams(): void
+	{
+		if(!Access::canManage())
+		{
+			$this->addError(new Error(Loc::getMessage('ACCESS_DENIED') ?: 'Access denied', 'ACCESS_DENIED'));
+		}
+	}
+	
+	/**
+	 * Агент есть, и у пользователя права на ЕГО модуль.
+	 */
+	protected function checkAgentAccess(int $id): bool
+	{
+		$moduleId = Agents\Manager::getModuleIdById($id);
+		if(null === $moduleId)
+		{
+			$this->addError(new Error('Agent not found'));
+			return false;
+		}
+		
+		if(!Access::canManage($moduleId))
+		{
+			$this->addError(new Error(Loc::getMessage('ACCESS_DENIED') ?: 'Access denied', 'ACCESS_DENIED'));
+			return false;
+		}
+		
+		return true;
 	}
 	
 	public function initResult(): void

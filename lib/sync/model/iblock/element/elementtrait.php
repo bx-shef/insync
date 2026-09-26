@@ -8,7 +8,7 @@ use Bitrix\Main\DB\SqlExpression;
 use Bitrix\Main\Result;
 use Bitrix\Main\Error;
 use Shef\Options\TraitList;
-use Shef\Insync\Main\Utils;
+use Shef\InSync\Main\Utils;
 
 /**
  * Трейт элемента инфоблока

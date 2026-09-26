@@ -5,7 +5,7 @@ namespace Shef\InSync\TraitList\Xml;
 use XMLReader;
 use Bitrix\Main\InvalidOperationException;
 use SbWereWolf\XmlNavigator;
-use Shef\Insync\Main\Utils;
+use Shef\InSync\Main\Utils;
 
 /**
  * Трейт для обработки XML

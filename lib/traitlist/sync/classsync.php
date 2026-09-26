@@ -5,6 +5,7 @@ namespace Shef\InSync\TraitList\Sync;
 use Bitrix\Main\ORM\Data\DataManager;
 use Bitrix\Main\ORM\Objectify\Collection as OrmCollection;
 use Bitrix\Main\ORM\Objectify\EntityObject as OrmEntityObject;
+use Shef\InSync\Sync\IElement;
 
 /**
  * Трейт для работы с моделью синхронизации
@@ -46,12 +47,11 @@ trait ClassSync
 	
 	public function getSyncClassSyncTableEntity(): DataManager
 	{
-		static $entity;
-		if(null === $entity)
-		{
-			$entityClass = $this->getSyncClassSyncTable();
-			$entity = new $entityClass;
-		}
+		// Не static внутри метода: такая переменная одна на все объекты
+		// класса и его наследников, и смена таблицы через
+		// setSyncClassSyncTable() молча не действовала бы.
+		$entityClass = $this->getSyncClassSyncTable();
+		$entity = new $entityClass;
 		
 		if(!($entity instanceof DataManager))
 		{
@@ -63,15 +63,15 @@ trait ClassSync
 	
 	/**
 	 * Возвращает объект синхронизации
-	 * @return OrmEntityObject
+	 * @return IElement
 	 *
 	 * @see https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=43&LESSON_ID=11689&LESSON_PATH=3913.3516.5748.11687.11689
 	 */
-	public function getSyncEntityObject(): OrmEntityObject
+	public function getSyncEntityObject(): IElement
 	{
 		$entity = call_user_func([$this->getSyncClassSyncTable(), 'createObject']);
 		
-		if(!($entity instanceof OrmEntityObject))
+		if(!($entity instanceof IElement))
 		{
 			throw new \LogicException('Wrong syncEntityObject');
 		}

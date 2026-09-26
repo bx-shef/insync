@@ -92,7 +92,7 @@ class EnumProperty
 			function(\Bitrix\Main\ORM\Entity|Model\IBlock\PropertyEnumeration\PropertyEnumeration $propertyEnumeration)
 				use($propertyHelper)
 			{
-				return $propertyEnumeration->getValue() === $propertyHelper->value;
+				return mb_strtoupper((string)$propertyEnumeration->getValue()) === mb_strtoupper($propertyHelper->value);
 			}
 		);
 		
@@ -112,7 +112,7 @@ class EnumProperty
 			function(Model\IBlock\PropertyEnumeration\PropertyEnumeration $propertyEnumeration)
 				use($propertyHelper)
 			{
-				return $propertyEnumeration->getXmlId() === $propertyHelper->xmlId;
+				return mb_strtoupper((string)$propertyEnumeration->getXmlId()) === mb_strtoupper($propertyHelper->xmlId);
 			}
 		);
 		
@@ -141,7 +141,13 @@ class EnumProperty
 		$response = $enum->save();
 		if(!$response->isSuccess())
 		{
-			throw new SystemException(join(';', $response->getErrorMessages()));
+			throw new SystemException(sprintf(
+				'Error: property:%s {value: %s, xmlId: %s} %s',
+				$propertyHelper->property->getCode(),
+				$propertyHelper->value,
+				$propertyHelper->xmlId,
+				join(';', $response->getErrorMessages())
+			));
 		}
 		
 		/** @memo we clear all cache */

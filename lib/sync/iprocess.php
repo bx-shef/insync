@@ -25,11 +25,11 @@ interface IProcess
 	
 	/**
 	 * Возвращает объект синхронизации
-	 * @return EntityObject
+	 * @return IElement
 	 *
 	 * @see https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=43&LESSON_ID=11689&LESSON_PATH=3913.3516.5748.11687.11689
 	 */
-	public function getSyncEntityObject(): EntityObject;
+	public function getSyncEntityObject(): IElement;
 	
 	/**
 	 * Возвращает коллекцию объекта синхронизации

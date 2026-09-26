@@ -4,7 +4,7 @@ namespace Shef\InSync\Sync\Model\Catalog;
 
 use Bitrix\Main\ArgumentException;
 use Bitrix\Main\Type\Contract\Arrayable;
-use Shef\Insync\Main\Utils;
+use Shef\InSync\Main\Utils;
 
 class Product
 	extends EO_Product

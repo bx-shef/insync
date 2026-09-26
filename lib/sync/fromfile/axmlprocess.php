@@ -13,7 +13,7 @@ use SbWereWolf\XmlNavigator;
 use Shef\Options\Options\SmartStd;
 use Shef\Problems;
 use Shef\InSync\Sync;
-use Shef\Insync\Main\Utils;
+use Shef\InSync\Main\Utils;
 
 /**
  * Class AXmlProcess

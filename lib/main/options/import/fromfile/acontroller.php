@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Shef\Insync\Main\Options\Import\FromFile;
+namespace Shef\InSync\Main\Options\Import\FromFile;
 
 use CUserOptions;
 use Bitrix\Main\ArgumentNullException;
@@ -10,7 +10,9 @@ use Bitrix\Main\Engine;
 use Bitrix\Main\LoaderException;
 use Shef\Options\Components\Actions;
 use Shef\Options\TraitList;
+use Bitrix\Main\Error;
 use Shef\InSync\Agents;
+use Shef\InSync\Main\Access;
 use Shef\InSync\Sync;
 
 Loc::loadMessages(__FILE__);
@@ -46,6 +48,40 @@ abstract class AController
 		}
 		
 		$this->processToken = (string)$this->request->get('PROCESS_TOKEN');
+	}
+	
+	/**
+	 * Права — в самом действии, а не только на показ кнопки.
+	 *
+	 * Actions\Normal — это умолчания ядра: вход на портал и csrf. Кто вошёл,
+	 * тот и мог загрузить демо-файл в таблицу импорта и прогнать агент —
+	 * адрес действия виден в коде страницы настроек. Теперь нужен
+	 * администратор либо право «W» на модуль импорта.
+	 *
+	 * @see Access::canManage()
+	 */
+	protected function processBeforeAction(Engine\Action $action): bool
+	{
+		if(!Access::canManage(static::getAccessModuleId()))
+		{
+			$this->addError(new Error('Access denied', 'ACCESS_DENIED'));
+			return false;
+		}
+		
+		return parent::processBeforeAction($action);
+	}
+	
+	/**
+	 * Модуль, права на который нужны для импорта: тот, что объявил
+	 * контроллер. Для контроллера вне модуля — shef.insync.
+	 */
+	protected static function getAccessModuleId(): string
+	{
+		$parts = explode('\\', static::class);
+		
+		return count($parts) > 2
+			? mb_strtolower($parts[0].'.'.$parts[1])
+			: \Shef\InSync\Main\Constants::MODULE_ID;
 	}
 	
 	public function configureActions(): array
@@ -144,7 +180,7 @@ abstract class AController
 	{
 		$result = new Response();
 		$params = $this->getProgressParameters();
-		$result->setTotalItems((int)$params['TOTAL_ITEMS']);
+		$result->setTotalItems((int)($params['TOTAL_ITEMS'] ?? 0));
 		
 		static::getAgentProcess()::process([
 			'fromFileImport' => 'Y'

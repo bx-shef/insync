@@ -1,6 +1,5 @@
 <?php declare(strict_types=1);
 
-use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
 use Shef\Options\Main\Options;
 
@@ -12,9 +11,11 @@ use Shef\Options\Main\Options;
  * Tab(prefix)->Option(code) ~> код свойства: prefix_code
  */
 
+// indexDoc больше не передаём: вкладка «Документация» ушла из shef.options в
+// 3.0.0 вместе с параметром, и именованный аргумент, которого нет, — это
+// Error «Unknown named parameter», то есть неоткрывающаяся страница настроек.
 $response = ShOptionsConfig::getInstance(
-	moduleId: 'shef.insync',
-	indexDoc: 'README.md'
+	moduleId: 'shef.insync'
 );
 if(!$response->isSuccess())
 {

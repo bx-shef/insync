@@ -96,9 +96,11 @@ abstract class ACsvProcess
 			{
 				$needHeaders = static::getMapImportFile();
 				$item = static::convertEncoding($item);
+				// Колонок в файле больше, чем в карте, — лишним имя по номеру;
+				// расхождение числа колонок ловит test().
 				for($i = 0, $itmCount = count($item); $i < $itmCount; $i++)
 				{
-					$this->header[$i] = $needHeaders[$i];
+					$this->header[$i] = $needHeaders[$i] ?? (string)$i;
 				}
 			}
 			else
@@ -183,15 +185,20 @@ abstract class ACsvProcess
 		$info->fails = [];
 		$info->cntHeaders = count($this->header);
 
-		do {
+		// Цикл с предусловием: в файле из одного заголовка строк нет. Было
+		// do/while, и такой файл давал одну «строку» из false.
+		while(is_array($row))
+		{
 			$info->rowNum++;
 
 			$row = static::convertEncoding($row);
 
+			// Короткая строка (меньше колонок, чем в заголовке) — пустые
+			// значения, а не warning на каждую недостающую колонку.
 			$this->content = [];
 			for ($j = 0; $j < $info->cntHeaders; $j++)
 			{
-				$this->content[$this->header[$j]] = $row[$j];
+				$this->content[$this->header[$j]] = $row[$j] ?? '';
 			}
 			
 			$response = $this->processRow($info->tmpId.'.'.$info->rowNum);
@@ -202,8 +209,9 @@ abstract class ACsvProcess
 				
 				$this->content = [];
 			}
+			
+			$row = $this->csv->Fetch();
 		}
-		while($row = $this->csv->Fetch());
 
 		$this->csv->CloseFile();
 		

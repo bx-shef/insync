@@ -15,12 +15,13 @@ use Bitrix\Main\Result;
 use Bitrix\Main\Error;
 use Bitrix\Main\IO;
 use Bitrix\Main\Application;
+use Bitrix\Main\Security\Random;
 use Bitrix\Main\Type\Collection;
 use Shef\Options\TraitList;
 use Shef\Problems;
 use Shef\InSync\Sync;
 use Shef\InSync\Sync\IElement;
-use Shef\Insync\Main\Constants;
+use Shef\InSync\Main\Constants;
 
 /**
  * Class AFileProcess
@@ -52,6 +53,8 @@ abstract class AFileProcess
 	public const ErrorCodeFileEmptyContent = 4;
 
 	private ?IO\File $file = null;
+	
+	private null|string $fileToken = null;
 	
 	protected array $content = [];
 	
@@ -246,7 +249,7 @@ abstract class AFileProcess
 			->setInterfaceStatus($params['STATUS'] ?? Sync\EStatus::Undefined)
 			->setInterfaceMessage($params['MESSAGE'] ?? '')
 			->setInterfaceDateInsert($this->curDateTime)
-			->setInterfaceTitle((string)$params['TITLE'])
+			->setInterfaceTitle((string)($params['TITLE'] ?? ''))
 			->setInterfaceAdditional(
 				$params['ADDITIONAL'] ?? []
 			)
@@ -421,6 +424,20 @@ abstract class AFileProcess
 	}
 	
 	/**
+	 * Случайный хвост имени файла в каталогах импорта.
+	 *
+	 * Каталоги импорта лежат под /upload, то есть под корнем сайта, а имя
+	 * архивного файла было полностью предсказуемым — код импорта и дата с
+	 * точностью до минуты. Перебором по минутам за срок хранения выгрузку
+	 * (цены, клиенты, заказы) скачивал кто угодно. Хвост один на объект
+	 * импорта: файл в обработке и его архив опознаются по нему как пара.
+	 */
+	protected function getFileToken(): string
+	{
+		return $this->fileToken ??= mb_strtolower(Random::getString(16));
+	}
+	
+	/**
 	 * @inheritDoc
 	 */
 	public function setFile(IO\File $file): static
@@ -458,6 +475,7 @@ abstract class AFileProcess
 	{
 		return $this->getImportFolder()
 			.'process_'.static::getOriginatorId().'_'.$this->getCurDateTime()->format('d-m-Y_H-i')
+			.'_'.$this->getFileToken()
 			.'.'.$this->getFile()->getExtension();
 	}
 	
@@ -470,6 +488,7 @@ abstract class AFileProcess
 	{
 		return $this->getDoneFolder()
 			.'done_'.static::getOriginatorId().'_'.$this->getCurDateTime()->format('d-m-Y_H-i')
+			.'_'.$this->getFileToken()
 			.'.'.$this->getFile()->getExtension();
 	}
 	
@@ -482,6 +501,7 @@ abstract class AFileProcess
 	{
 		return $this->getProblemFolder()
 			.'problem_'.static::getOriginatorId().'_'.$this->getCurDateTime()->format('d-m-Y_H-i')
+			.'_'.$this->getFileToken()
 			.'.'.$this->getFile()->getExtension();
 	}
 	// endregion ////

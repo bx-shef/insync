@@ -4,7 +4,7 @@ namespace Shef\InSync\Sync\Model\Hl\Demo;
 
 use Bitrix\Main\Type\Contract\Arrayable;
 use Bitrix\Main\ArgumentException;
-use Shef\Insync\Main\Utils;
+use Shef\InSync\Main\Utils;
 use Shef\Options\TraitList;
 
 class Card

@@ -2,6 +2,8 @@
 
 defined('B_PROLOG_INCLUDED') || die;
 
+use Shef\InSync\Main\Access;
+
 /** @var array $arParams */
 /** @var array $arResult */
 /** @global CMain $APPLICATION */
@@ -18,84 +20,56 @@ defined('B_PROLOG_INCLUDED') || die;
 /** @var \Shef\InSync\Agents\Entity $agentInfo */
 /** @var \Shef\InSync\Agents\Entity $agentRel */
 
-$firstOrigin = null;
 $groups = [];
 foreach($arResult['AGENTS_LIST'] as $agentEntity)
 {
 	$agentInfo = $agentEntity->entity;
 	$agentEntity->title = $agentInfo->getTitle();
-	
-	if(!isset($groups[$agentInfo->getOrigin()]))
-	{
-		$groups[$agentInfo->getOrigin()] = [];
-	}
-	
+
 	$groups[$agentInfo->getOrigin()][] = $agentEntity;
 }
 
-foreach($groups as $group => $list):
-	
-	$isFirst = true;
-	$cnt = count($list) - 1;
-	
-	foreach($list as $index => $agentEntity):
+foreach($groups as $group => $list):?>
+	<div class="sh-insync-card sh-insync-agents">
+	<?php foreach($list as $agentEntity):
 		$agentInfo = $agentEntity->entity;
-		
-		$class = [];
-		if($isFirst)
-		{
-			$class[] = 'rounded-0';
-			$class[] = 'rounded-top';
-			
-			$isFirst = false;
-		}
-		else
-		{
-			$class[] = 'rounded-0';
-		}
-		
-		if($index === $cnt)
-		{
-			$class[] = 'rounded-bottom';
-			$class[] = 'mb-5';
-		}
-		
+		// Кнопки — только тому, у кого права на модуль агента; действие
+		// проверяет их ещё раз.
+		$canManage = Access::canManage($agentInfo->getModule());
 		?>
-		<div class="card <?=join(' ', $class)?>">
-			<div class="card-header">
-				<div class="card-title my-1" title="<?=$agentInfo->getModule()?> | <?=$agentInfo->getOrigin()?> "><?=$agentEntity->title?> <?=$agentInfo->getDescription()?></div>
+		<div class="sh-insync-card-header" title="<?=htmlspecialcharsbx($agentInfo->getModule().' | '.$agentInfo->getOrigin())?>">
+			<?=htmlspecialcharsbx((string)$agentEntity->title)?>
+			<?php // Описание пишет разработчик агента — это разметка, а не данные. ?>
+			<?=$agentInfo->getDescription()?>
+		</div>
+		<div class="sh-insync-card-body">
+		<?php foreach($agentEntity->list as $agentRel):?>
+			<div class="sh-insync-agent">
+				<a href="/bitrix/admin/agent_edit.php?ID=<?=(int)$agentRel->getId()?>&lang=<?=LANGUAGE_ID?>" target="_blank">
+					<?php if($agentRel->isActive()):?>
+						<?=$agentRel->getNextExec()?->format('d.m.Y H:i:s');?>
+					<?php else:?>
+						<?=htmlspecialcharsbx($agentRel->getName())?>
+					<?php endif;?>
+				</a>
+				<?php if($canManage):?>
+					<?php if($agentRel->isActive()):?>
+						<button
+							onclick="BX.ShInSync.ImportStat.onStopAgent(event, <?=(int)$agentRel->getId();?>)"
+							class="ui-btn ui-btn-light ui-btn-xs ui-btn-icon-pause"
+							type="button"
+						></button>
+					<?php else:?>
+						<button
+							onclick="BX.ShInSync.ImportStat.onStartAgent(event, <?=(int)$agentRel->getId();?>);"
+							type="button"
+							class="ui-btn ui-btn-success ui-btn-xs ui-btn-icon-start"
+						></button>
+					<?php endif;?>
+				<?php endif;?>
 			</div>
-			<?php
-			foreach($agentEntity->list as $agentRel):?>
-				<div class="list-group"><div class="row py-2 px-4">
-					<div class="col-10">
-						<div class="row p-0">
-							<div class="col-12"><a href="/bitrix/admin/agent_edit.php?ID=<?=$agentRel->getId()?>" target="_blank">
-								<?php if($agentRel->isActive()):?>
-									<?=$agentRel->getNextExec()?->format('d.m.Y H:i:s');?>
-								<?php else:?>
-									<?=$agentRel->getName()?>
-								<?php endif;?></a>
-							</div>
-						</div>
-					</div>
-					<div class="col-2 text-end">
-						<?php if($agentRel->isActive()):?>
-							<button
-								onclick="BX.ShInSync.ImportStat.onStopAgent(event, <?=$agentRel->getId();?>)"
-								class="ui-btn ui-btn-light ui-btn-xs ui-btn-icon-pause"
-								type="button"
-							></button>
-						<?php else:?>
-							<button
-								onclick='BX.ShInSync.ImportStat.onStartAgent(event, <?=$agentRel->getId();?>);'
-								type="button"
-								class="ui-btn ui-btn-success ui-btn-xs ui-btn-icon-start"
-							></button>
-						<?php endif;?>
-					</div>
-				</div></div>
-			<?php endforeach;?>
+		<?php endforeach;?>
 		</div>
 	<?php endforeach;?>
-<?php endforeach;?>
+	</div>
+<?php endforeach;

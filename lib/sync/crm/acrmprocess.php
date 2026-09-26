@@ -26,6 +26,7 @@ abstract class ACrmProcess
 {
 	public const Limit = 10;
 	protected null|Crm\Item $row = null;
+	private null|Crm\Service\Factory $factory = null;
 	
 	protected const OriginatorId = 'demoCrm';
 	
@@ -42,14 +43,22 @@ abstract class ACrmProcess
 	 *
 	 * @return Crm\Service\Factory
 	 */
+	/**
+	 * Фабрика CRM для типа сущности импорта.
+	 *
+	 * Хранится в свойстве объекта. Было static внутри метода, а такая
+	 * переменная одна на класс и его наследников (PHP 8.1+): второй импорт
+	 * CRM в том же хите — скажем, сделки после смарт-процесса — получал
+	 * фабрику первого.
+	 */
 	public function getFactory(): Crm\Service\Factory
 	{
-		static $factory;
-		if(null === $factory)
+		if(null === $this->factory)
 		{
-			$factory = Crm\Service\Container::getInstance()->getFactory($this->getEntityTypeId());
+			$this->factory = Crm\Service\Container::getInstance()->getFactory($this->getEntityTypeId());
 		}
 		
+		$factory = $this->factory;
 		if(null === $factory)
 		{
 			throw new LogicException(sprintf(
@@ -223,7 +232,7 @@ abstract class ACrmProcess
 			->setInterfaceStatus($params['STATUS'] ?? Sync\EStatus::Undefined)
 			->setInterfaceMessage($params['MESSAGE'] ?? '')
 			->setInterfaceDateInsert($this->curDateTime)
-			->setInterfaceTitle((string)$params['TITLE'])
+			->setInterfaceTitle((string)($params['TITLE'] ?? ''))
 			->setInterfaceAdditional(
 				$params['ADDITIONAL'] ?? []
 			)

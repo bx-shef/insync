@@ -56,7 +56,7 @@ class SectionTable
 	 * @param Event $event
 	 * @return void
 	 */
-	public static function onUpdate(Event $event)
+	public static function onUpdate(Event $event): void
 	{
 		/** @var Section $section */
 		$section = $event->getParameter('object');

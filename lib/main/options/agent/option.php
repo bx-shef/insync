@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Shef\Insync\Main\Options\Agent;
+namespace Shef\InSync\Main\Options\Agent;
 
 use Bitrix\Main\ArgumentOutOfRangeException;
 use Bitrix\Main\Engine\UrlManager;
@@ -9,6 +9,7 @@ use Bitrix\Main\ArgumentNullException;
 use Bitrix\Main\Localization\Loc;
 use Shef\Options\Main\Options as ShefOptions;
 use Shef\InSync\Agents;
+use Shef\InSync\Main\Access;
 
 Loc::loadMessages(__FILE__);
 
@@ -100,7 +101,9 @@ class Option
 			'stopAgent',
 			[
 				'agentId' => $this->getAgentEntity()->getId(),
-				'moduleId' => $this->getAgentEntity()->getModule()
+				'moduleId' => $this->getAgentEntity()->getModule(),
+				// Действие по ссылке — GET, и csrf ядро проверяет и для него.
+				'sessid' => bitrix_sessid(),
 			],
 			false
 		)->getUri();
@@ -118,7 +121,9 @@ class Option
 			'startAgent',
 			[
 				'agentId' => $this->getAgentEntity()->getId(),
-				'moduleId' => $this->getAgentEntity()->getModule()
+				'moduleId' => $this->getAgentEntity()->getModule(),
+				// Действие по ссылке — GET, и csrf ядро проверяет и для него.
+				'sessid' => bitrix_sessid(),
 			],
 			false
 		)->getUri();
@@ -132,7 +137,13 @@ class Option
 	 */
 	protected function renderValue(string $moduleId): string
 	{
-		if($this->getAgentEntity()->isActive())
+		// Кнопку видит только тот, кому действие разрешено; само действие
+		// проверяет права ещё раз — см. Controller::checkAgent().
+		if(!Access::canManage($this->getAgentEntity()->getModule()))
+		{
+			$action = '';
+		}
+		elseif($this->getAgentEntity()->isActive())
 		{
 			$action = sprintf(
 				'<a type="button" href="%s" class="ui-btn ui-btn-xs ui-btn-danger ui-btn-icon-pause"></a>',

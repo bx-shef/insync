@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Shef\Insync\Main;
+namespace Shef\InSync\Main;
 
 use Bitrix\Main\Loader;
 use Bitrix\Main\LoaderException;

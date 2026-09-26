@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Shef\Insync\Main\Options\Import\FromFile;
+namespace Shef\InSync\Main\Options\Import\FromFile;
 
 use Bitrix\Main\Engine\Resolver;
 use Bitrix\Main\Engine\Controller;
@@ -9,7 +9,7 @@ use Bitrix\Main\Type\Dictionary;
 use Bitrix\Main\UI\Extension;
 use Bitrix\Main\Web;
 use Shef\Options\Main\Options as ShefOptions;
-use Shef\Insync\Main\Options\Import\FromFile\Model\OptionField\ABase;
+use Shef\InSync\Main\Options\Import\FromFile\Model\OptionField\ABase;
 
 /**
  * Для вывода опции импорта файла на страницы параметров модуля

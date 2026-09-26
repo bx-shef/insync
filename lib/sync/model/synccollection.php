@@ -6,28 +6,6 @@ use Bitrix\Main\DB\SqlQueryException;
 use Bitrix\Main\SystemException;
 use Bitrix\Main\ArgumentException;
 
-/*/
-//title: Model\SyncCollection::getStatistic()
-	\Bitrix\Main\Loader::includeModule('shef.insync');
-	\Bitrix\Main\UI\Extension::load([
-		'shef-problems-monolog-pr-html'
-	]);
-	$syncCollection = \Shef\InSync\Sync\Model\SyncTable::createCollection();
-	$response = $syncCollection->getStatistic();
-	\Shef\Problems\Logger::PrHtml->getLogger()->debug($response);
-	
-//title: Model\SyncCollection::clear()
-	\Bitrix\Main\UI\Extension::load([
-		'shef-problems-monolog-pr-html'
-	]);
-	\Bitrix\Main\Loader::includeModule('shef.insync');
-	$syncCollection = \Shef\InSync\Sync\Model\SyncTable::createCollection();
-	$importCode = 'ShefDemosyncFromFileCsv';
-	$syncCollection->clear($importCode);
-	$response = $syncCollection->getStatistic();
-	\Shef\Problems\Logger::PrHtml->getLogger()->debug($response);
-//*/
-
 class SyncCollection
 	extends EO_Sync_Collection
 {
@@ -50,46 +28,76 @@ class SyncCollection
 		return $result;
 	}
 	
+	/**
+	 * Сколько строк в таблице импорта у одного импорта.
+	 *
+	 * @return array{ORIGINATOR_ID: string, CNT: int}
+	 */
 	public function getStatisticByOriginator(string $importCode): array
 	{
-		$sql = "
-			SELECT ORIGINATOR_ID, COUNT(ORIGIN_ID) as CNT
-			FROM ".$this->entity->getDBTableName()."
-			WHERE `ORIGINATOR_ID` = '".$importCode."'
-			ORDER BY DATE_INSERT ASC
-		";
+		$connection = $this->entity->getConnection();
 		
-		$result = $this->entity->getConnection()->query($sql)->fetchRaw();
+		$sql = sprintf(
+			'SELECT COUNT(ORIGIN_ID) AS CNT FROM %s WHERE %s',
+			$this->entity->getDBTableName(),
+			static::buildWhere($connection->getSqlHelper(), $importCode)
+		);
 		
-		return $result;
+		$row = $connection->query($sql)->fetch();
+		
+		return [
+			'ORIGINATOR_ID' => $importCode,
+			'CNT' => (int)(is_array($row) ? ($row['CNT'] ?? 0) : 0),
+		];
 	}
 	
 	/**
-	 * @throws SqlQueryException|SystemException
+	 * Удаляет строки импорта: одного импорта, одной загрузки или все.
 	 */
 	public function clear(
 		string $importCode = '',
 		null|\Bitrix\Main\Type\DateTime $dateTime = null
 	): void
 	{
-		$sql = sprintf(
-			'DELETE FROM %s WHERE 1 = 1 %s',
-			$this->entity->getDBTableName(),
-			join(' ', [
-				(
-					$importCode <> ''
-					? 'AND `ORIGINATOR_ID` = \''.$importCode.'\''
-					: ''
-				),
-				(
-				$dateTime instanceof \Bitrix\Main\Type\DateTime
-					? 'AND `DATE_INSERT` = \''.($dateTime->format('Y-m-d H:i:s')).'\''
-					: ''
-				),
-			])
-		);
-		$this->entity->getConnection()->queryExecute($sql);
+		$connection = $this->entity->getConnection();
 		
-		unset($sql);
+		$sql = sprintf(
+			'DELETE FROM %s WHERE %s',
+			$this->entity->getDBTableName(),
+			static::buildWhere($connection->getSqlHelper(), $importCode, $dateTime)
+		);
+		
+		$connection->queryExecute($sql);
+	}
+	
+	/**
+	 * Условие по коду импорта и дате загрузки.
+	 *
+	 * Значения экранируются. До 2.0.0 код импорта вставлялся в SQL как есть,
+	 * а в clear() он приходит из ajax-действия компонента статистики —
+	 * параметром запроса. Это была SQL-инъекция для любого вошедшего на
+	 * портал.
+	 *
+	 * @param object $sqlHelper \Bitrix\Main\DB\SqlHelper
+	 */
+	public static function buildWhere(
+		object $sqlHelper,
+		string $importCode = '',
+		null|\Bitrix\Main\Type\DateTime $dateTime = null
+	): string
+	{
+		$where = ['1 = 1'];
+		
+		if($importCode !== '')
+		{
+			$where[] = "ORIGINATOR_ID = '".$sqlHelper->forSql($importCode)."'";
+		}
+		
+		if($dateTime instanceof \Bitrix\Main\Type\DateTime)
+		{
+			$where[] = "DATE_INSERT = '".$sqlHelper->forSql($dateTime->format('Y-m-d H:i:s'))."'";
+		}
+		
+		return implode(' AND ', $where);
 	}
 }

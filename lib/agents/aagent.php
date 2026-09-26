@@ -86,7 +86,6 @@ abstract class AAgent
 		return [
 			'shef.options',
 			'shef.problems',
-			'shef.uiclear',
 			'shef.insync',
 		];
 	}
@@ -115,7 +114,7 @@ abstract class AAgent
 		$info->isNeedStop = false;
 		$info->isDebug = false;
 
-		if((string)$params['debug'] === 'Y')
+		if((string)($params['debug'] ?? '') === 'Y')
 		{
 			$info->isDebug = true;
 		}
@@ -135,7 +134,10 @@ abstract class AAgent
 				
 				/** @var AAgent $agent */
 				$agent = (static::getInstance());
-				$agent->setParams($params)->setIsDebug($info->isDebug)->configureLogger($logger)->configureDebugger($debugger);
+				$agent->setParams($params)
+					->setIsDebug($info->isDebug)
+					->configureLogger($logger)
+					->configureDebugger($debugger);
 				
 				$response = $agent->action();
 				if(!$response->isSuccess())
@@ -146,9 +148,12 @@ abstract class AAgent
 				{
 					$info->isNeedStop = $agent->isNeedStop();
 				}
-			}catch(Throwable $throwable)
+			}
+			catch(Throwable $throwable)
 			{
-				$result->addError(Problems\Throwable\Manager::buildError($throwable, false));
+				// С трассировкой: агент падает без свидетелей, и место падения
+				// потом искать только по журналу.
+				$result->addError(Problems\Throwable\Manager::buildError($throwable, true));
 			}
 			finally
 			{
@@ -164,8 +169,9 @@ abstract class AAgent
 				$debugger->critical($result);
 				foreach($result->getErrors() as $error)
 				{
+					// Текст ошибки — данные (строка импорта, ответ API), не разметка.
 					CAdminMessage::ShowMessage([
-						'MESSAGE' => $error->getMessage(),
+						'MESSAGE' => nl2br(htmlspecialchars($error->getMessage(), ENT_QUOTES | ENT_SUBSTITUTE)),
 						'TYPE' => 'ERROR',
 						'HTML' => true
 					]);

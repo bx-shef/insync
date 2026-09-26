@@ -4,7 +4,7 @@ namespace Shef\InSync\Integration\Intranet;
 
 use Bitrix\Intranet\CustomSection;
 use Bitrix\Main\Web\Uri;
-use Shef\Options\Main\Security;
+use Shef\InSync\Main\Access;
 
 /**
  * @link https://dev.1c-bitrix.ru/api_d7/bitrix/intranet/custom_section.php
@@ -21,7 +21,7 @@ class CustomSectionProvider
 	
 	protected static function getComponentNameFromParams(array $params = []): string
 	{
-		return (string)$params[0];
+		return (string)($params[0] ?? '');
 	}
 	
 	protected static function getComponentParamsFromParams(array $params = []): array
@@ -31,11 +31,11 @@ class CustomSectionProvider
 		return match ($componentName)
 		{
 			'shef.insync:import.from.file' => [
-				'CLASS' => (string)$params[1],
-				'MODULE' => (string)$params[2]
+				'CLASS' => (string)($params[1] ?? ''),
+				'MODULE' => (string)($params[2] ?? '')
 			],
 			'shef.insync:redirect' => [
-				'URL' => (string)$params[1],
+				'URL' => (string)($params[1] ?? ''),
 			],
 			default => [],
 		};
@@ -53,9 +53,16 @@ class CustomSectionProvider
 		
 		$componentName = static::getComponentNameFromParams($params);
 		
+		// Страницы этого модуля — тому, кто вправе управлять импортом; сами
+		// компоненты проверяют права ещё раз. Чужие страницы в разделе
+		// (installLeftMenu[].moduleId другого модуля) отвечают за себя сами.
 		return match ($componentName)
 		{
-			'shef.insync:import.stat.local' => Security::isAdmin(),
+			'shef.insync:import.stat.local',
+			'shef.insync:redirect' => Access::canManage(),
+			'shef.insync:import.from.file' => Access::canManage(
+				(string)(static::getComponentParamsFromParams($params)['MODULE'] ?? '')
+			),
 			default => true,
 		};
 	}
@@ -75,9 +82,16 @@ class CustomSectionProvider
 		$componentName = static::getComponentNameFromParams($params);
 		$componentParameters = static::getComponentParamsFromParams($params);
 		
+		// Переход — только внутри портала: адрес берётся из настроек страницы.
 		if($componentName === 'shef.insync:redirect')
 		{
-			LocalRedirect($componentParameters['URL']);
+			$target = (string)$componentParameters['URL'];
+			if(str_starts_with($target, '/') && !str_starts_with($target, '//'))
+			{
+				LocalRedirect($target);
+			}
+			
+			return null;
 		}
 		
 		$isSliderMode = false;

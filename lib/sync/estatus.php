@@ -2,8 +2,6 @@
 
 namespace Shef\InSync\Sync;
 
-use Shef\UiClear\Css\Color;
-
 /**
  * Перечисление статусов синхронизации
  */
@@ -15,15 +13,22 @@ enum EStatus: string
 	case Success = 'S';
 	case Fail = 'F';
 	
+	/**
+	 * Цвет статуса для вывода.
+	 *
+	 * До 2.0.0 цвета брались из перечисления цветов модуля shef.uiclear,
+	 * которого не будет. Теперь — литералы той же палитры, и зависимость
+	 * ради пяти строк ушла.
+	 */
 	public function getColor(): string
 	{
 		return match($this)
 		{
-			self::Undefined => Color::gray100->value,
-			self::New => Color::gray800->value,
-			self::Process => Color::blue->value,
-			self::Success => Color::success->value,
-			self::Fail => Color::danger->value
+			self::Undefined => '#F5F8FA',
+			self::New => '#3F4254',
+			self::Process => '#009EF7',
+			self::Success => '#50CD89',
+			self::Fail => '#F1416C',
 		};
 	}
 	

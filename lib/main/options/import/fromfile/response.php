@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Shef\Insync\Main\Options\Import\FromFile;
+namespace Shef\InSync\Main\Options\Import\FromFile;
 
 use Bitrix\Main\Result;
 use Bitrix\Main\Error;
