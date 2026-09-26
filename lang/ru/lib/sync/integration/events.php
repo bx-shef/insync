@@ -1,0 +1,5 @@
+<?php
+$MESS['SHEF_INSYNC_TOOLS_IMPORT'] = '[SH] Импорт';
+$MESS['SHEF_INSYNC_TOOLS_STAT'] = 'Статистика';
+$MESS['SHEF_INSYNC_TOOLS_STAT_SLIDER_TITLE'] = 'Статистика';
+$MESS['SHEF_INSYNC_TOOLS_STAT_TABLE_IMPORT'] = 'Записи импорта';

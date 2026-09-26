@@ -1,0 +1,27 @@
+{
+	"name": "shef/insync",
+	"description": "Для работы с синхронизациями",
+	"keywords": [
+		"Bitrix24",
+		"PHP",
+		"Sync"
+	],
+	"minimum-stability": "stable",
+	"license": "proprietary",
+	"type": "bitrix-d7-module",
+	"authors": [
+		{
+			"name": "Igor Shevchik",
+			"email": "shevchik.mail@gmail.com"
+		}
+	],
+	"require": {
+		"php": ">=8.1.0",
+		"ext-mbstring": "*",
+		"ext-xmlreader": "*",
+		"sbwerewolf/xml-navigator": "^7.2",
+		"shef/options": "^2.2",
+		"shef/uiclear": "^1.1",
+		"shef/problems": "^1.1"
+	}
+}

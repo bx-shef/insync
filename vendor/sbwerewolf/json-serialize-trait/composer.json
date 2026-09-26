@@ -1,0 +1,22 @@
+{
+  "name": "sbwerewolf/json-serialize-trait",
+  "description": "Library with trait of ability to output all properties of class-exemplar at call json_encode()",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Nikolay Volkhin",
+      "email": "ulfnew@gmail.com"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "": [
+        "src/"
+      ]
+    }
+  },
+  "require": {
+    "ext-json": "*"
+  }
+}
