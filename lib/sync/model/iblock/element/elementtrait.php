@@ -37,18 +37,18 @@ trait ElementTrait
 		array $params
 	): static
 	{
-		$params['XML_ID'] = $params['XML_ID'] ?: static::getXmlIdIdempotence();
+		$params['XML_ID'] = ($params['XML_ID'] ?? null) ?: static::getXmlIdIdempotence();
 		
 		if(empty($params['NAME']))
 		{
-			$params['CODE'] = $params['CODE'] ?: $params['XML_ID'];
+			$params['CODE'] = ($params['CODE'] ?? null) ?: $params['XML_ID'];
 			$params['ACTIVE'] = false;
 			$params['NAME'] = static::getEmptyName();
 		}
 		else
 		{
-			$params['CODE'] = $params['CODE'] ?: Utils::translation($params['NAME']);
-			$params['ACTIVE'] = $params['ACTIVE'] ?: false;
+			$params['CODE'] = ($params['CODE'] ?? null) ?: Utils::translation($params['NAME']);
+			$params['ACTIVE'] = ($params['ACTIVE'] ?? null) ?: false;
 			$params['NAME'] = trim($params['NAME']);
 		}
 		
