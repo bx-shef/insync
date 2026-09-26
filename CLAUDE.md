@@ -39,15 +39,28 @@
 | `composer_test.php` | тип пакета, `installer-name`, потолок `composer/installers`, версии линейки |
 | `docs_test.php` | ссылки в `*.md` живые, классы и методы из документации существуют |
 | `examples_test.php` | каждый пример из `examples/` запускается и сходится с обещанным |
-| `skills_test.php` | навыки оформлены, копия сходится со своим `MANIFEST` |
+| `skills_test.php` | навыки оформлены, копия сходится с `MANIFEST`, локальные навыки — с `LOCAL.MANIFEST` |
 | `evals_test.php` | evals навыков разбираются |
 
-**Навыки — копия, а не источник.** `.claude/skills/` раскладывает
-`sync.sh --to` из [bx-shef/options](https://github.com/bx-shef/options); там
-же их и правят. Класс `\Shef\InSync\...`, названный в навыке, проверяет
-**этот** репозиторий (`tests/docs_test.php`). Задача `Skills` в CI сверяет
-копию с источником и краснеет, когда источник ушёл вперёд — это сигнал
-разложить заново, а не чинить копию.
+**Навыки — двух видов.** Навыки линейки (`shef-options-*`, `shef-new-agent`
+и прочие из `MANIFEST`) — **копия**: их раскладывает `sync.sh --to` из
+[bx-shef/options](https://github.com/bx-shef/options), там же их и правят.
+Задача `Skills` в CI сверяет копию с источником и краснеет, когда источник
+ушёл вперёд — это сигнал разложить заново, а не чинить копию.
+
+Навыки про сам shef.insync — **локальные**, их источник здесь:
+`shef-new-import` (импорт через таблицу и агент), `shef-new-api-client`
+(клиент внешнего API на `AConnector`), `shef-use-insync-models` (модели и
+драйверы каталога и инфоблоков). shef.options о получателях не знает, поэтому
+они перечислены в `.claude/skills/LOCAL.MANIFEST`: после правки —
+`.claude/skills/sync.sh --local`, иначе `--check` краснеет; `sync.sh --to`
+их не трогает. Оформление — по правилам `.claude/skills/README.md` (evals
+обязательны), классы `\Shef\InSync\...` из навыков проверяет
+`tests/docs_test.php`, наличие — `tests/skills_test.php`.
+
+Сигнатуры в навыках приведены дословно: поменяли абстрактный метод
+`AFileProcess`, `FromFile\AAgent`, `AConnector` или драйвера — правьте и
+навык.
 
 **Примеры в `examples/` запускаются, а не читаются.** Как в shef.options:
 `php examples/x.php` — на заглушках, `DOCUMENT_ROOT=/var/www/portal php

@@ -17,9 +17,9 @@ class Store
 	public static function build(array $params): static
 	{
 		return new static([
-			'XML_ID' => $params['XML_ID'] ?: static::getXmlIdIdempotence(),
-			'TITLE' => $params['TITLE'] ?: static::EmptyName,
-			'ADDRESS' => $params['ADDRESS'] ?: '',
+			'XML_ID' => ($params['XML_ID'] ?? null) ?: static::getXmlIdIdempotence(),
+			'TITLE' => ($params['TITLE'] ?? null) ?: static::EmptyName,
+			'ADDRESS' => ($params['ADDRESS'] ?? null) ?: '',
 		]);
 	}
 	

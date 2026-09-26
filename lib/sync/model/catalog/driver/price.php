@@ -50,11 +50,11 @@ class Price
 		$result = new Result();
 		
 		$conf = [
-			'CATALOG_GROUP_ID' => (int)$primary['CATALOG_GROUP_ID'],
-			'PRODUCT_ID' => (int)$primary['PRODUCT_ID'],
-			'PRICE' => (float)$params['PRICE'],
-			'PRICE_SCALE' => (float)($params['PRICE_SCALE'] ?: $params['PRICE']),
-			'CURRENCY' => (string)$params['CURRENCY'],
+			'CATALOG_GROUP_ID' => (int)($primary['CATALOG_GROUP_ID'] ?? 0),
+			'PRODUCT_ID' => (int)($primary['PRODUCT_ID'] ?? 0),
+			'PRICE' => (float)($params['PRICE'] ?? 0),
+			'PRICE_SCALE' => (float)(($params['PRICE_SCALE'] ?? null) ?: ($params['PRICE'] ?? 0)),
+			'CURRENCY' => (string)($params['CURRENCY'] ?? ''),
 		];
 		
 		if((int)$conf['PRODUCT_ID'] < 1)
@@ -80,17 +80,21 @@ class Price
 			]
 		]);
 		
-		if((int)$entity['ID'] < 1)
+		if((int)($entity['ID'] ?? 0) < 1)
 		{
 			$response = $this->getModel()::add($conf);
 		}
 		else
 		{
-			unset($conf['CATALOG_GROUP_ID'], $conf['PRODUCT_ID']);
+			// Обновляем разобранным $conf, а не сырыми $params: до 2.0.0
+			// здесь уходили $params — без приведения типов и без
+			// PRICE_SCALE по умолчанию, а заодно всё лишнее, что в них было.
+			$fields = $conf;
+			unset($fields['CATALOG_GROUP_ID'], $fields['PRODUCT_ID']);
 			
 			$response = $this->getModel()::update(
 				(int)$entity['ID'],
-				$params
+				$fields
 			);
 		}
 		

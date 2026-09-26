@@ -57,11 +57,11 @@ class Amount
 		array $params
 	): Result
 	{
-		if((int)$primary['PRODUCT_ID'] < 1)
+		if((int)($primary['PRODUCT_ID'] ?? 0) < 1)
 		{
 			return (new Result)->addError(new Error('Wrong primary PRODUCT_ID'));
 		}
-		elseif((int)$params['STORE_ID'] < 1)
+		elseif((int)($params['STORE_ID'] ?? 0) < 1)
 		{
 			return (new Result)->addError(new Error('Wrong params STORE_ID'));
 		}

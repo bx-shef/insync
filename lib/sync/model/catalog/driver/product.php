@@ -59,7 +59,7 @@ class Product
 	{
 		$result = new Result();
 		
-		if((int)$primary['ID'] < 1)
+		if((int)($primary['ID'] ?? 0) < 1)
 		{
 			return $result->addError(new Error('Wrong primary ID'));
 		}

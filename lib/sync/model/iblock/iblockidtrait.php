@@ -34,7 +34,8 @@ trait IBlockIdTrait
 	public static function getIblockId(): int
 	{
 		$subclass = static::class;
-		if((int)static::$iblockId[$subclass] < 1)
+		// Без ?? PHP 8 давал warning до исключения, которое и так объясняет.
+		if((int)(static::$iblockId[$subclass] ?? 0) < 1)
 		{
 			throw new LogicException(sprintf(
 				'Not set iblockId at %s. Use setIblockId()',
