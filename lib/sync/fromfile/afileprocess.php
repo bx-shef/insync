@@ -14,7 +14,6 @@ use Bitrix\Main\ObjectNotFoundException;
 use Bitrix\Main\Result;
 use Bitrix\Main\Error;
 use Bitrix\Main\IO;
-use Bitrix\Main\Application;
 use Bitrix\Main\Security\Random;
 use Bitrix\Main\Type\Collection;
 use Shef\Options\TraitList;
@@ -378,7 +377,7 @@ abstract class AFileProcess
 	 */
 	public static function getImportFolder(): string
 	{
-		return Application::getDocumentRoot().'/upload/import/'.static::getOriginatorId().'/';
+		return Constants::getImportDir().'/'.static::getOriginatorId().'/';
 	}
 	
 	/**
@@ -386,7 +385,7 @@ abstract class AFileProcess
 	 */
 	public static function getDoneFolder(): string
 	{
-		return Application::getDocumentRoot().'/upload/import/copy/'.static::getOriginatorId().'/';
+		return Constants::getImportDir().'/copy/'.static::getOriginatorId().'/';
 	}
 	
 	/**
@@ -394,7 +393,7 @@ abstract class AFileProcess
 	 */
 	public static function getProblemFolder(): string
 	{
-		return Application::getDocumentRoot().'/upload/import/problem/'.static::getOriginatorId().'/';
+		return Constants::getImportDir().'/problem/'.static::getOriginatorId().'/';
 	}
 	
 	/**
@@ -426,11 +425,13 @@ abstract class AFileProcess
 	/**
 	 * Случайный хвост имени файла в каталогах импорта.
 	 *
-	 * Каталоги импорта лежат под /upload, то есть под корнем сайта, а имя
-	 * архивного файла было полностью предсказуемым — код импорта и дата с
-	 * точностью до минуты. Перебором по минутам за срок хранения выгрузку
-	 * (цены, клиенты, заказы) скачивал кто угодно. Хвост один на объект
-	 * импорта: файл в обработке и его архив опознаются по нему как пара.
+	 * До 2.0.0 каталоги импорта лежали под /upload, а имя архивного файла
+	 * было полностью предсказуемым — код импорта и дата с точностью до
+	 * минуты: перебором выгрузку скачивал кто угодно. Каталоги теперь вне
+	 * корня сайта (Constants::getImportDir()), а хвост остался второй линией:
+	 * проект может задать свой каталог и ошибиться с ним. Хвост один на
+	 * объект импорта: файл в обработке и его архив опознаются по нему как
+	 * пара.
 	 */
 	protected function getFileToken(): string
 	{

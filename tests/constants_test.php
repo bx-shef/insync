@@ -7,6 +7,9 @@
  * «0», пустая строка или мусор давали 0 дней: clearDoneFolder() при каждом
  * запуске импорта стирал архив загруженных файлов целиком. Теперь всё, что
  * не целое > 0, — умолчание, и умолчание одно на код и default_option.php.
+ *
+ * Каталог импорта — вне корня сайта. До 2.0.0 он был /upload/import, и
+ * выгрузки отдавал веб-сервер. Свой каталог проекта — только абсолютный путь.
  */
 
 $root = dirname(__DIR__);
@@ -48,5 +51,40 @@ Check::same(
 $conf = (string)file_get_contents($root.'/options_conf.php');
 preg_match("/->setDefValue\('(\d+)'\)/", $conf, $defValue);
 Check::same('и со страницей настроек', $defValue[1] ?? null, (string)Constants::DEFAULT_MAX_DAY_DONE_FILE);
+
+Check::group('каталог импорта — вне корня сайта');
+
+use Bitrix\Main\Application;
+use Bitrix\Main\Config\Configuration;
+
+Application::$documentRoot = '/home/bitrix/www';
+Configuration::$values = [];
+Check::same('BitrixVM — рядом с корнем', Constants::getImportDir(), '/home/bitrix/sh_import');
+
+Application::$documentRoot = '/home/bitrix/www/';
+Check::same('слэш на конце корня не мешает', Constants::getImportDir(), '/home/bitrix/sh_import');
+
+Application::$documentRoot = '/www';
+Check::same('корень сайта в корне диска — не «//sh_import»', Constants::getImportDir(), '/sh_import');
+
+Application::$documentRoot = '/var/www/portal';
+Check::same('не под корнем сайта', str_starts_with(Constants::getImportDir(), '/var/www/portal/'), false);
+
+Configuration::$values = ['shef.insync' => ['importDir' => '/var/data/import/']];
+Check::same('свой каталог проекта', Constants::getImportDir(), '/var/data/import');
+
+Configuration::$values = ['shef.insync' => ['importDir' => 'upload/import']];
+Check::same('относительный путь — умолчание', Constants::getImportDir(), '/var/www/sh_import');
+
+Configuration::$values = ['shef.insync' => ['importDir' => '/']];
+Check::same('корень диска — умолчание', Constants::getImportDir(), '/var/www/sh_import');
+
+Configuration::$values = [];
+Application::$documentRoot = '';
+Check::same(
+	'без корня сайта (CLI) — временный каталог системы',
+	Constants::getImportDir(),
+	rtrim(sys_get_temp_dir(), '/').'/sh_import'
+);
 
 Check::finish();

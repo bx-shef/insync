@@ -236,7 +236,7 @@ remove on the major release`, поэтому в `require` стоит потол�
 /local/components/shef.insync/                                            -> нет (копия 1.x убрана)
 ```
 
-Каталоги импорта лежат под `/upload` — см. [security.md](security.md).
+Каталоги импорта — вне корня сайта, ссылки на них нет вовсе, см. [security.md](security.md).
 
 Полная процедура проверки на портале — в [portal-check.md](portal-check.md):
 шаги с ожидаемым результатом, отдельно обновление с 1.x и запуск
