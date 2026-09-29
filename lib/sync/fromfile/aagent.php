@@ -266,9 +266,13 @@ abstract class AAgent
 		while($item = $fresh->fetch())
 		{
 			$row = $staleList[static::normalizeOriginId((string)$item['ORIGIN_ID'])] ?? null;
-			if(null !== $row && static::deleteRow($row, $result))
+			if(null !== $row)
 			{
+				// Сначала из пачки, потом из таблицы: удалённый объект ORM
+				// может потерять первичный ключ, и remove() его не нашёл бы.
+				// Не удалилась — строка вне пачки, повтор на следующем запуске.
 				$listRows->remove($row);
+				static::deleteRow($row, $result);
 			}
 		}
 	}
