@@ -177,6 +177,8 @@ namespace Shef\Problems\Factory\Trait
 		{
 			static::$records[] = $record;
 		}
+
+		public function debug(string $message, array $context = []): void {}
 	}
 
 	trait LoggerProblems
@@ -195,6 +197,7 @@ namespace Shef\Problems\Factory\Trait
 
 		public function configureLogger(TestLogger $logger): static
 		{
+			$this->logger = $logger;
 			return $this;
 		}
 	}
@@ -215,6 +218,7 @@ namespace Shef\Problems\Factory\Trait
 
 		public function configureDebugger(TestLogger $debugger): static
 		{
+			$this->debugger = $debugger;
 			return $this;
 		}
 	}

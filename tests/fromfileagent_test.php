@@ -10,8 +10,10 @@
  * 1. устаревшая строка под меткой ошибки, у которой есть свежая, удаляется и
  *    не разбирается: иначе её удачный повтор записал бы вчерашние данные
  *    поверх сегодняшних;
- * 2. свежая строка упала — её прежняя копия под меткой удаляется, и
- *    переименование не упирается в уникальный индекс;
+ * 2. свежая строка разобрана — удачно или нет — её прежняя копия под меткой
+ *    удаляется, даже если в пачку не попала; внешние коды сравниваются, как
+ *    их сравнивает MySQL, — без учёта регистра;
+ * 4. отладка одной строки ничего из этого не удаляет;
  * 3. сбой сохранения ошибочной строки и сбой удаления удачной — в результате
  *    агента, и пачка не обрывается. Было: терялись молча, исключение
  *    обрывало пачку, и удачные строки разбирались снова.
@@ -40,8 +42,14 @@ if(!class_exists('CPullStack'))
 	}
 }
 
+// Отладка агента печатает строки как объекты ORM.
+if(!class_exists(\Bitrix\Main\ORM\Objectify\EntityObject::class))
+{
+	eval('namespace Bitrix\\Main\\ORM\\Objectify; abstract class EntityObject {}');
+}
+
 /** Строка таблицы импорта. */
-final class FakeRow implements IElement
+final class FakeRow extends \Bitrix\Main\ORM\Objectify\EntityObject implements IElement
 {
 	public null|string $failSave = null;
 	public null|string $throwDelete = null;
@@ -67,6 +75,7 @@ final class FakeRow implements IElement
 	public function setInterfaceAdditional(array $additional): static { return $this; }
 	public function getInterfaceAdditional(): array { return []; }
 	public function clearInterfaceSyncStatus(): void {}
+	public function collectValues(): array { return [$this->key()]; }
 
 	public function saveInterface(): \Bitrix\Main\ORM\Data\Result
 	{
@@ -137,10 +146,12 @@ final class FakeTable extends \Bitrix\Main\ORM\Data\DataManager
 			return null === $expected || in_array($actual, (array)$expected, true);
 		};
 
+		// Как MySQL: внешний код — без учёта регистра.
+		$lower = static fn(null|string|array $value): null|array => null === $value ? null : array_map('mb_strtolower', (array)$value);
 		$rows = array_values(array_filter(
 			static::$rows,
 			static fn(FakeRow $row): bool => $match($filter['=ORIGINATOR_ID'] ?? null, $row->getInterfaceOriginatorId())
-				&& $match($filter['=ORIGIN_ID'] ?? null, $row->getInterfaceOriginId())
+				&& $match($lower($filter['=ORIGIN_ID'] ?? null), mb_strtolower($row->getInterfaceOriginId()))
 		));
 
 		if(isset($parameters['limit']))
@@ -198,7 +209,8 @@ final class PriceAgent extends \Shef\InSync\Sync\FromFile\AAgent
 }
 
 $agent = PriceAgent::getInstance();
-$agent->setSyncClassSyncTable(FakeTable::class);
+$agent->setSyncClassSyncTable(FakeTable::class)
+	->configureDebugger(new \Shef\Problems\Factory\Trait\TestLogger());
 
 $run = static function(int $limit = 100) use ($agent): Result
 {
@@ -219,6 +231,24 @@ FakeTable::$rows = [
 $run();
 Check::same('вчерашняя «123» не разбирается, её повтор без свежей — да', $agent->processed, ['price/123', 'price.error/456']);
 Check::same('в таблице ничего не осталось', FakeTable::$rows, []);
+
+Check::group('свежая строка разобрана — прежняя копия под меткой уходит, даже вне пачки');
+
+FakeTable::$rows = [
+	new FakeRow('price', '555'),
+	new FakeRow('price.error', '555', EStatus::Fail),
+];
+$run(1);
+Check::same('удачная свежая разобрана', $agent->processed, ['price/555']);
+Check::same('вчерашней копии больше нет — её повтор не запишет старое', $keys(), []);
+
+FakeTable::$rows = [
+	new FakeRow('price', 'ABC'),
+	new FakeRow('price.error', 'abc', EStatus::Fail),
+];
+$run();
+Check::same('регистр внешнего кода не спасает устаревшую', $agent->processed, ['price/ABC']);
+Check::same('…и она удалена', $keys(), []);
 
 Check::group('свежая строка упала — прежняя копия под меткой уходит');
 
@@ -245,5 +275,22 @@ $result = $run();
 Check::same('ошибки разбора, сохранения и удаления', $result->getErrorMessages(), ['bad row 1', 'save failed', 'delete failed']);
 Check::same('строка после сбоя удаления тоже удалена', in_array('price/3', $keys(), true), false);
 $agent->fail = [];
+
+$twin = new FakeRow('price.error', '4', EStatus::Fail);
+$twin->throwDelete = 'twin delete failed';
+FakeTable::$rows = [new FakeRow('price', '4'), $twin];
+$result = $run(1);
+Check::same('сбой удаления копии — в результате, строка разобрана', [$result->getErrorMessages(), $agent->processed], [['twin delete failed'], ['price/4']]);
+
+Check::group('отладка одной строки ничего не удаляет');
+
+FakeTable::$rows = [
+	new FakeRow('price', '123'),
+	new FakeRow('price.error', '123', EStatus::Fail),
+];
+$agent->setIsDebug(true)->setParams(['ORIGIN_ID' => '123']);
+$run();
+Check::same('обе строки на месте', $keys(), ['price/123', 'price.error/123']);
+$agent->setIsDebug(false)->setParams([]);
 
 Check::finish();

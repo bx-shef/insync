@@ -105,6 +105,17 @@ require $_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/shef.insync/install/index.php
 \Shef\InSync\Sync\Model\SyncTable::init();   // ключ таблицы 1.x -> 2.x
 ```
 
+До перевода проверьте, что внешние коды не совпадают в первых 191 символе —
+иначе уникальный индекс не встанет и `init()` откажет (строки не тронет):
+
+```sql
+SELECT ORIGINATOR_ID, LEFT(ORIGIN_ID, 191) AS K, COUNT(*) FROM shef_insync_model
+GROUP BY ORIGINATOR_ID, K HAVING COUNT(*) > 1;
+```
+
+Пусто — переводите. Нет — лишние строки (обычно давно упавшие) удалить или
+разобрать до перевода.
+
 `init()` переводит таблицу импорта 1.x на ключ 2.x: первичный ключ — новая
 колонка `ID`, внешний код уникален в пределах кода импорта, индексы 1.x
 (`_origs`, `_orig_id`, `_originator_id`) снимаются. Строки остаются;

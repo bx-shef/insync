@@ -85,9 +85,6 @@ final class PriceCsv extends ACsvProcess
 	public function init(IElement $element): Result
 	{
 		$element
-			// Внешний код — уникален в пределах кода импорта: повтор артикула
-			// в том же импорте — ошибка вставки. Не задан — код случайный.
-			->setInterfaceOriginId((string)$this->content['ARTICLE'])
 			->setInterfaceTitle((string)$this->content['ARTICLE'])
 			->setInterfaceAdditional($this->content);
 
@@ -101,6 +98,12 @@ final class PriceCsv extends ACsvProcess
 	}
 }
 ```
+
+**Внешний код строки** (`setInterfaceOriginId()`) не задан — он случайный,
+и строки не сталкиваются никогда. Задан (артикул) — он уникален в пределах
+кода импорта: две строки с одним артикулом в файле или повторная выгрузка до
+того, как агент разобрал прошлую, — ошибка вставки. Задавайте, только если
+повтор кода — действительно ошибка данных.
 
 Для **XML** — наследник `AXmlProcess`, вместо `isUseHeader`/`getDelim`/
 `getMapImportFile` один метод `getItemTag()` — тег элемента (`'item'`). В

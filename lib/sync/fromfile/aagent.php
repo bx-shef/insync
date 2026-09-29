@@ -110,13 +110,17 @@ abstract class AAgent
 		
 		$listRows = $this->getSyncClassSyncTableEntity()::getList($conf)->fetchCollection();
 		
-		$staleOriginatorId = $this->strategy instanceof Strategy\AStrategy
+		// Отладка одной строки повторяема и ничего не удаляет.
+		$staleOriginatorId = (
+			$this->strategy instanceof Strategy\AStrategy
+			&& !$this->strategy->isUseOneRowDebug($this)
+		)
 			? $this->strategy->getSupersededOriginatorId(static::getOriginatorId())
 			: null;
 		
 		if(null !== $staleOriginatorId)
 		{
-			$this->dropSuperseded($listRows, $staleOriginatorId);
+			$this->dropSuperseded($listRows, $staleOriginatorId, $result);
 		}
 		// endregion ////
 		
@@ -187,7 +191,7 @@ abstract class AAgent
 		// region Remove Items From SyncTable ////
 		if(null !== $staleOriginatorId)
 		{
-			$this->dropStaleTwins($listRows, $staleOriginatorId);
+			$this->dropStaleTwins($listRows, $staleOriginatorId, $result);
 		}
 		
 		$isUseOneRowDebug = $this->strategy->isUseOneRowDebug($this);
@@ -216,18 +220,7 @@ abstract class AAgent
 				continue;
 			}
 			
-			try
-			{
-				$response = $row->deleteInterface();
-				if(!$response->isSuccess())
-				{
-					$result->addErrors($response->getErrors());
-				}
-			}
-			catch(Throwable $throwable)
-			{
-				$result->addError(Problems\Throwable\Manager::buildError($throwable, true));
-			}
+			static::deleteRow($row, $result);
 			
 		}
 		unset($listRows);
@@ -244,14 +237,14 @@ abstract class AAgent
 	 *
 	 * @param iterable<IElement> $listRows коллекция ORM пачки
 	 */
-	protected function dropSuperseded(object $listRows, string $staleOriginatorId): void
+	protected function dropSuperseded(object $listRows, string $staleOriginatorId, Result $result): void
 	{
 		$staleList = [];
 		foreach($listRows as $row)
 		{
 			if($row->getInterfaceOriginatorId() === $staleOriginatorId)
 			{
-				$staleList[$row->getInterfaceOriginId()] = $row;
+				$staleList[static::normalizeOriginId($row->getInterfaceOriginId())] = $row;
 			}
 		}
 		
@@ -263,7 +256,7 @@ abstract class AAgent
 		$fresh = $this->getSyncClassSyncTableEntity()::getList([
 			'filter' => [
 				'=ORIGINATOR_ID' => static::getOriginatorId(),
-				'=ORIGIN_ID' => array_map('strval', array_keys($staleList)),
+				'=ORIGIN_ID' => array_map(static fn(IElement $row): string => $row->getInterfaceOriginId(), array_values($staleList)),
 			],
 			'select' => [
 				'ORIGIN_ID'
@@ -272,37 +265,34 @@ abstract class AAgent
 		
 		while($item = $fresh->fetch())
 		{
-			$row = $staleList[(string)$item['ORIGIN_ID']] ?? null;
-			if(null !== $row)
+			$row = $staleList[static::normalizeOriginId((string)$item['ORIGIN_ID'])] ?? null;
+			if(null !== $row && static::deleteRow($row, $result))
 			{
-				$row->deleteInterface();
 				$listRows->remove($row);
 			}
 		}
 	}
 	
 	/**
-	 * Свежая строка упала и уйдёт под метку ошибки — прежняя её копия там
-	 * устарела и мешала бы: внешний код уникален в пределах кода импорта.
-	 * Один запрос на пачку.
+	 * Свежие строки пачки разобраны — их прежние копии под меткой ошибки
+	 * устарели, где бы в таблице они ни лежали: удачный повтор вчерашней
+	 * записал бы старые данные, а упавшая свежая, уходя под метку, упёрлась бы
+	 * в индекс. Один запрос на пачку.
 	 *
 	 * @param iterable<IElement> $listRows коллекция ORM пачки
 	 */
-	protected function dropStaleTwins(object $listRows, string $staleOriginatorId): void
+	protected function dropStaleTwins(object $listRows, string $staleOriginatorId, Result $result): void
 	{
-		$failList = [];
+		$freshList = [];
 		foreach($listRows as $row)
 		{
-			if(
-				$row->getInterfaceStatus() === Sync\EStatus::Fail
-				&& $row->getInterfaceOriginatorId() === static::getOriginatorId()
-			)
+			if($row->getInterfaceOriginatorId() === static::getOriginatorId())
 			{
-				$failList[] = $row->getInterfaceOriginId();
+				$freshList[] = $row->getInterfaceOriginId();
 			}
 		}
 		
-		if(empty($failList))
+		if(empty($freshList))
 		{
 			return;
 		}
@@ -310,14 +300,52 @@ abstract class AAgent
 		$twins = $this->getSyncClassSyncTableEntity()::getList([
 			'filter' => [
 				'=ORIGINATOR_ID' => $staleOriginatorId,
-				'=ORIGIN_ID' => $failList,
+				'=ORIGIN_ID' => $freshList,
+			],
+			// Без ADDITIONAL: строку удаляем, данные не нужны. Первичный
+			// ключ ORM добавляет к выборке объектов сам.
+			'select' => [
+				'ORIGINATOR_ID',
+				'ORIGIN_ID',
 			]
 		])->fetchCollection();
 		
 		foreach($twins as $twin)
 		{
-			$twin->deleteInterface();
+			static::deleteRow($twin, $result);
 		}
+	}
+	
+	/**
+	 * Удаление строки: сбой — в результат агента, пачка идёт дальше.
+	 */
+	protected static function deleteRow(IElement $row, Result $result): bool
+	{
+		try
+		{
+			$response = $row->deleteInterface();
+			if(!$response->isSuccess())
+			{
+				$result->addErrors($response->getErrors());
+				return false;
+			}
+		}
+		catch(Throwable $throwable)
+		{
+			$result->addError(Problems\Throwable\Manager::buildError($throwable, true));
+			return false;
+		}
+		
+		return true;
+	}
+	
+	/**
+	 * Внешний код так, как его сравнивает MySQL: без учёта регистра и
+	 * пробелов в конце. Иначе «ABC» из выборки не нашёл бы «abc» пачки.
+	 */
+	protected static function normalizeOriginId(string $originId): string
+	{
+		return mb_strtolower(rtrim($originId, ' '));
 	}
 	
 	/**
