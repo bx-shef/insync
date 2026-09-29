@@ -30,11 +30,14 @@
 
 ## Перед началом
 
-Снимите копию каталога модуля, настроек и таблицы импорта — шаги с удалением
-необратимы:
+Снимите копию каталога модуля, настроек, таблицы импорта и компонентов 1.x в
+`/local` — шаги с удалением необратимы, а установщик удаляет
+`/local/components/shef.insync` без проверки содержимого (в 1.x там мог
+править проект):
 
 ```bash
 cp -a /var/www/portal/bitrix/modules/shef.insync /tmp/shef.insync.before 2>/dev/null
+cp -a /var/www/portal/local/components/shef.insync /tmp/local-components.before 2>/dev/null
 mysqldump -u… portal b_option --where="MODULE_ID='shef.insync'" > /tmp/opt.before.sql
 mysqldump -u… portal shef_insync_model > /tmp/model.before.sql
 ls /var/www/portal/local/components/ /var/www/portal/bitrix/components/ /var/www/portal/bitrix/js/ | sort > /tmp/public.before
@@ -146,6 +149,9 @@ BX.ajax.runComponentAction('shef.insync:import.stat.local', 'stopAgent', {mode: 
    адрес кнопки агента (`/bitrix/services/main/ajax.php?action=…stopAgent&…`),
    открыть его под пользователем без прав, подставив `agentId=1&moduleId=main`
    и его `sessid` (`BX.bitrix_sessid()`) — ошибка, агент не тронут.
+4. Пользователю дать «Запись» на `sale` (или другой модуль ядра со своими
+   агентами), повторить п. 3 с ID агента `sale` и `moduleId=sale` — ошибка
+   «Agent not found», агент не тронут: модуль трогает только агенты импорта.
 
 Под **администратором:** страница статистики открывается, агент модуля-импорта
 выключается и включается кнопкой, «Очистить» у строки грида удаляет только
@@ -187,6 +193,23 @@ PHP 8.4 и разбирают XML в тот же формат, но модуль
 проблемы с типом `SH_PROBLEMS_SYNC`; страница статистики обновляется сама
 (pull), без ошибок в консоли браузера.
 
+## G2. Драйверы каталога
+
+Из PHP-консоли на товаре торгового каталога (ID и тип цены — свои):
+
+```php
+\Bitrix\Main\Loader::includeModule('shef.insync');
+$price = new \Shef\InSync\Sync\Model\Catalog\Driver\Price();
+var_dump($price->save(['PRODUCT_ID' => 1, 'CATALOG_GROUP_ID' => 1], ['PRICE' => 10, 'CURRENCY' => 'BYN'])->isSuccess());
+var_dump($price->save(['PRODUCT_ID' => 1, 'CATALOG_GROUP_ID' => 1], ['PRICE' => 12.5, 'CURRENCY' => 'BYN'])->isSuccess());
+var_dump((new \Shef\InSync\Sync\Model\Catalog\Driver\Product())->save(['ID' => 1], ['WEIGHT' => 250])->isSuccess());
+var_dump((new \Shef\InSync\Sync\Model\Catalog\Driver\Amount())->save(['PRODUCT_ID' => 1], ['STORE_ID' => 1, 'AMOUNT' => 7])->isSuccess());
+```
+
+**Ожидается:** четыре `true`, ни одного `Warning`; у товара **одна** цена
+этого типа — 12.50, `PRICE_SCALE` заполнен; вес 250; остаток на складе 1 — 7
+(при включённом складском учёте ядро остаток так не примет — это верно).
+
 ## H. Удаление
 
 1. **Marketplace → Установленные решения** → «[SH] InSync» → удалить.
@@ -199,6 +222,11 @@ PHP 8.4 и разбирают XML в тот же формат, но модуль
   настройки `shef.options` — на месте;
 * раздел «[SH] Импорт» из левого меню ушёл;
 * файлы в каталоге импорта **остались**: это данные проекта.
+
+Формы «сохранить данные?» у модуля нет: удаление из админки стирает таблицу
+импорта всегда. Оставить данные — только из PHP-консоли:
+`(new shef_insync())->UnInstallDB(['savedata' => 'Y'])` после подключения
+`/bitrix/modules/shef.insync/install/index.php`.
 
 Если модуль зависит от других (`shef.*` с `shef.insync` в `requireModules`),
 удаление обязано отказать и назвать их.
@@ -232,10 +260,12 @@ B. Обновление с 1.2.x ..................... ок / не ок / нет
 C. Страница настроек ...................... ок / не ок
 D. Права: без прав — отказ ................ ок / не ок
    агент ядра не тронут ................... ок / не ок
+   «W» на sale — агенты sale не тронуты ... ок / не ок
 E. Импорт файла ........................... ок / не ок
    .php отклонён .......................... ок / не ок
 F. Библиотеки XML взяты из ................ модуль / Composer
 G. Агент импорта .......................... ок / не ок
+G2. Драйверы каталога ..................... ок / не ок
 H. Удаление ............................... ок / не ок
 I. CP1251 ................................. ок / пропущено
 J. Примеры на живом ядре .................. ок / не ок

@@ -106,6 +106,7 @@ return [
 	'requirePhpExt' => [
 		'value' => [
 			'xmlreader',
+			'mbstring',
 		],
 		'readonly' => true,
 	],

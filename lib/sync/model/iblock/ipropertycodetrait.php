@@ -11,7 +11,7 @@ use Bitrix\Main\SystemException;
 trait IPropertyCodeTrait
 {
 	/** @var string[]  */
-	protected static array $code;
+	protected static array $code = [];
 	
 	public static function setPropertyCode(string $code): void
 	{
@@ -26,7 +26,7 @@ trait IPropertyCodeTrait
 	public static function getPropertyCode(): string
 	{
 		$subclass = static::class;
-		if(empty((string)static::$code[$subclass]))
+		if(empty((string)(static::$code[$subclass] ?? '')))
 		{
 			throw new LogicException(sprintf(
 				'Not set code at %s. Use setPropertyCode()',

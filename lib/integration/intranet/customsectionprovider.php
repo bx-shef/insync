@@ -86,7 +86,13 @@ class CustomSectionProvider
 		if($componentName === 'shef.insync:redirect')
 		{
 			$target = (string)$componentParameters['URL'];
-			if(str_starts_with($target, '/') && !str_starts_with($target, '//'))
+			// «//host» и «/\\host» браузер читает как адрес другого сайта, а
+			// табуляцию и перевод строки из адреса вырезает: «/\t/host» — тоже.
+			if(
+				1 === preg_match('#^/(?![/\\\\])#', $target)
+				&& !str_contains($target, '\\')
+				&& 0 === preg_match('/[\x00-\x20\x7f]/', $target)
+			)
 			{
 				LocalRedirect($target);
 			}

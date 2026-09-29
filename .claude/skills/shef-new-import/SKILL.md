@@ -133,7 +133,8 @@ BitrixVM), внутри `<код импорта>/` — на импорт, `copy/
 `getImportFolder()` процесса: проект может перенести каталог
 (`/bitrix/.settings_extra.php`, `shef.insync` → `importDir`). Внешний обмен
 (1С, FTP) кладёт файлы в `getImportFolder()`; у имени файла должен быть
-префикс — `getExistFiles('price-', 'csv')` ищет по началу имени.
+префикс — `getExistFiles('price-', 'csv')` берёт файлы, имя которых
+начинается с префикса, с этим расширением.
 
 ## 4. Агент разбора
 
@@ -245,7 +246,9 @@ shef.insync, в своём `.settings.php`:
 проходит проверку имени, расширения — из `getImportFileAccept()`.
 
 Список агентов на странице «Статистика» — ответ на событие
-`shef.insync::onComponentStatLocal`: `['items' => [PriceAgent::buildAgentsEntity()]]`.
+`shef.insync::onComponentStatLocal`: `new \Bitrix\Main\EventResult(\Bitrix\Main\EventResult::SUCCESS, ['items' => [PriceAgent::buildAgentsEntity()]])`
+— компонент берёт `items` только из успешного ответа. Кнопки агента работают
+только для агентов импорта — наследников `AAgent`.
 
 ## 6. Права
 

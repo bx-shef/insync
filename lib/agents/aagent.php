@@ -24,8 +24,6 @@ use Shef\InSync\Agents;
  *
  * Родительский класс для агентов. Поддерживает учет проблем.
  *
- * @const LogLevel - Определяет уровень логирования @see \Shef\Problems\ILog
- *
  * @param bool $isNeedStop - Указывает что не стоит возобновлять работу агента
  * @param Dictionary $params - Хранит переданные в агент параметры
  */
@@ -44,12 +42,21 @@ abstract class AAgent
 
 	private ?Dictionary $params;
 	
+	/**
+	 * Контекст CRM по классу агента. Не static внутри метода: та переменная
+	 * одна на AAgent и всех наследников, и правка контекста одним агентом
+	 * доставалась другому.
+	 *
+	 * @var array<class-string, Context>
+	 */
+	private static array $contextList = [];
+	
 	public static function getContext(): Context
 	{
-		static $context;
+		$context = self::$contextList[static::class] ?? null;
 		if(null === $context)
 		{
-			$context = (new Context())
+			$context = self::$contextList[static::class] = (new Context())
 				->setUserId(
 					\Shef\Options\Main\Constants::getSystemUserId()
 				)
@@ -184,7 +191,9 @@ abstract class AAgent
 			return '';
 		}
 
-		return ($agent?->getName($params) ?? '');
+		// Не подключились модули или упал getInstance() — агент остаётся на
+		// месте: пустая строка сняла бы его из b_agent насовсем.
+		return static::getName($params);
 	}
 
 	/**

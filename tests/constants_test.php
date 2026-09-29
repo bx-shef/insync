@@ -48,9 +48,8 @@ Check::same(
 	(string)Constants::DEFAULT_MAX_DAY_DONE_FILE
 );
 
-$conf = (string)file_get_contents($root.'/options_conf.php');
-preg_match("/->setDefValue\('(\d+)'\)/", $conf, $defValue);
-Check::same('и со страницей настроек', $defValue[1] ?? null, (string)Constants::DEFAULT_MAX_DAY_DONE_FILE);
+// Страница настроек берёт умолчание из Constants — сверяет optionsconf_test.php
+// по собранной опции, а не по тексту файла.
 
 Check::group('каталог импорта — вне корня сайта');
 

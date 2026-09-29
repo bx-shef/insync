@@ -57,4 +57,11 @@ Check::same(
 );
 Check::same('пусто — пусто', Headers::mask([]), []);
 
+$secret = ['authorization', 'X-Client-Secret', 'X-Password', 'X-Session-Id', 'X-Auth', 'X-Api-Sign', 'Signature', 'X-Access'];
+Check::same(
+	'каждое слово шаблона — маской, регистр не важен',
+	array_keys(array_filter(Headers::mask(array_fill_keys($secret, 'v')), static fn($value): bool => $value !== Headers::MASK)),
+	[]
+);
+
 Check::finish();

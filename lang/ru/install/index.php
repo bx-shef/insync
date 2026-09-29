@@ -12,6 +12,7 @@ $MESS['SH_NEED_MODULES'] = 'Для установки данного решен�
 $MESS['SH_NEED_MODULES_BY_VERSION'] = 'Для установки данного решения необходимо наличие модуля <a target="_blank" href="#URL#">#NEED#</a> версии #VER# и выше.';
 
 $MESS['SH_NEED_UTF8'] = 'Модуль поставляется в кодировке UTF-8 и может быть установлен только на проект в UTF-8. Текущий проект работает в другой кодировке.';
+$MESS['SH_INSTALL_TABLE_FAIL'] = 'Не удалось создать таблицу импорта shef_insync_model, модуль не установлен.';
 $MESS['SH_NEED_PHP_VER'] = 'Для модуля требуется версия PHP выше #NEED#. Ваша версия #CURRENT#';
 $MESS['SH_PROBLEM_UNINSTALL_MODULE'] = 'Нельзя удалить модуль:';
 $MESS['SH_NEED_UNINSTALL_MODULE_BEFORE'] = '. зависимость в модуле <a target="_blank" href="/bitrix/admin/settings.php?mid=#TARGET#">#TARGET#</a>';

@@ -21,17 +21,15 @@ use Shef\Options\Options\SmartStd;
  *
  * В Результате файл распарсится, записи попадут в таблицу импорта, файл уйдет в архив
  *
- * @memo Для опций используем AEntityProcess::optionCollection
- *
- * @memo Переопределяем AEntityProcess::OriginatorId
+ * @memo Переопределяем Sync\AProcess::OriginatorId
  * @memo Переопределяем ACsvProcess::isUseHeader() тут указываем есть ли заголоко
  * @memo Переопределяем ACsvProcess::getDelim() тут указываем разделитель
- * @memo Переопределяем AEntityProcess::getEncodingFrom() тут указываем кодировку файла
+ * @memo Переопределяем getEncodingFrom() тут указываем кодировку файла
  *
  * @memo Переопределяем ACsvProcess::getMapImportFile()
  *
  * @memo Переопределяем ACsvProcess::test() для теста заголовка
- * @memo Переопределяем AEntityProcess::init() для инициализации строки файла в элемент для записи в таблицу импорта
+ * @memo Переопределяем Sync\IProcess::init() для инициализации строки файла в элемент для записи в таблицу импорта
  *
  */
 abstract class ACsvProcess

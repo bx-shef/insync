@@ -203,14 +203,15 @@ class ShefInSyncImportStatLocalComponent
 	}
 	
 	/**
-	 * Агент есть, и у пользователя права на ЕГО модуль.
+	 * Агент импорта есть, и у пользователя права на ЕГО модуль. Агенты ядра
+	 * и прочие не на AAgent — «не найден», какие бы права ни были.
 	 */
 	protected function checkAgentAccess(int $id): bool
 	{
-		$moduleId = Agents\Manager::getModuleIdById($id);
+		$moduleId = Agents\Manager::getImportAgentModuleId($id);
 		if(null === $moduleId)
 		{
-			$this->addError(new Error('Agent not found'));
+			$this->addError(new Error('Agent not found', 'AGENT_NOT_FOUND'));
 			return false;
 		}
 		

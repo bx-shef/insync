@@ -80,15 +80,15 @@ class Controller
 	}
 
 	/**
-	 * Агент существует, принадлежит названному модулю, и у пользователя есть
-	 * права на этот модуль.
+	 * Агент существует, это агент импорта (наследник AAgent), принадлежит
+	 * названному модулю, и у пользователя есть права на этот модуль.
 	 *
 	 * Модуль из запроса сверяется с модулем агента в b_agent: иначе права на
 	 * свой модуль открывали бы чужие агенты.
 	 */
 	protected function checkAgent(int $agentId, string $moduleId): bool
 	{
-		$agentModuleId = Manager::getModuleIdById($agentId);
+		$agentModuleId = Manager::getImportAgentModuleId($agentId);
 
 		if(null === $agentModuleId || $agentModuleId !== $moduleId)
 		{

@@ -68,7 +68,7 @@ class Utils
 		
 		return \CUtil::translit(
 			$value,
-			$options['lang'] ?: 'ru',
+			($options['lang'] ?? '') ?: 'ru',
 			$options
 		);
 	}

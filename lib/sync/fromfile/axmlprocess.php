@@ -25,12 +25,10 @@ use Shef\InSync\Main\Utils;
  *
  * В Результате файл распарсится, записи попадут в таблицу импорта, файл уйдет в архив
  *
- * @memo Для опций используем AEntityProcess::optionCollection
+ * @memo Переопределяем Sync\AProcess::OriginatorId
+ * @memo Переопределяем getEncodingFrom() тут указываем кодировку файла
  *
- * @memo Переопределяем AEntityProcess::OriginatorId
- * @memo Переопределяем AEntityProcess::getEncodingFrom() тут указываем кодировку файла
- *
- * @memo Переопределяем AEntityProcess::init() для инициализации строки файла в элемент для записи в таблицу импорта
+ * @memo Переопределяем Sync\IProcess::init() для инициализации строки файла в элемент для записи в таблицу импорта
  *
  */
 abstract class AXmlProcess

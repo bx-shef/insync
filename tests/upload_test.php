@@ -23,6 +23,7 @@
 $root = dirname(__DIR__);
 
 require_once $root.'/tests/stub/autoload.php';
+require_once $root.'/tests/stub/agent.php';
 require_once $root.'/tests/assert.php';
 
 use Bitrix\Main\Engine\CurrentUser;
@@ -41,12 +42,64 @@ Check::same('путь Windows тоже', Component::prepareUploadName('C:\\tmp\\
 Check::same('.php — нет', Component::prepareUploadName('shell.php', ''), null);
 Check::same('.PHTML — нет, регистр не спасает', Component::prepareUploadName('shell.PHTML', ''), null);
 Check::same('.htaccess — нет', Component::prepareUploadName('.htaccess', ''), null);
+foreach(['x.svg', 'x.html', 'x.xhtml', 'x.shtm', 'x.php7', 'x.phtm', 'x.hta', 'x.mht', 'x.js'] as $dangerous)
+{
+	Check::same($dangerous.' без accept — нет', Component::prepareUploadName($dangerous, ''), null);
+}
+Check::same('двойное расширение .php.csv — нет', Component::prepareUploadName('price.php.csv', '.csv'), null);
+Check::same('точка в имени не мешает', Component::prepareUploadName('price.v2.csv', '.csv'), 'price.v2.csv');
 Check::same('скрытый файл — нет', Component::prepareUploadName('.price.csv', '.csv'), null);
 Check::same('без расширения — нет', Component::prepareUploadName('price', ''), null);
 Check::same('расширение не из accept — нет', Component::prepareUploadName('price.xml', '.csv'), null);
 Check::same('accept со списком и MIME', Component::prepareUploadName('price.zip', '.xml, .zip, text/xml'), 'price.zip');
 Check::same('без accept — любое не исполняемое', Component::prepareUploadName('price.txt', ''), 'price.txt');
 Check::same('кавычки и угловые скобки — нет', Component::prepareUploadName('a"<b>.csv', '.csv'), null);
+
+Check::group('загрузка: имя от браузера проходит prepareUploadName()');
+
+// Процесс импорта модуля shef.demo; конструктор пуст — каталоги не нужны.
+eval('namespace Shef\\Demo;
+final class Upload extends \\Shef\\InSync\\Sync\\FromFile\\ACsvProcess
+{
+	protected const OriginatorId = "DemoUpload";
+	public function __construct() {}
+	public static function getModuleId(): string { return "shef.demo"; }
+	public static function getProcessTitle(): string { return ""; }
+	public static function getProcessDescription(): string { return ""; }
+	public static function getEncodingFrom(): string { return "UTF-8"; }
+	public static function getImportFileAccept(): string { return ".csv"; }
+	public static function isUseHeader(): bool { return false; }
+	public static function getDelim(): string { return ";"; }
+	public function getMapImportFile(): array { return []; }
+	public function init(\\Shef\\InSync\\Sync\\IElement $element): \\Bitrix\\Main\\Result { return new \\Bitrix\\Main\\Result(); }
+}');
+
+$upload = static function(string $name): array
+{
+	$component = new Component();
+	$component->arParams = ['MODULE' => 'shef.demo', 'CLASS' => '\\Shef\\Demo\\Upload'];
+	$component->request = new class($name)
+	{
+		public function __construct(private readonly string $name) {}
+
+		public function getFile(string $field): array
+		{
+			// tmp_name — не загруженный файл: move_uploaded_file() его не тронет.
+			return ['name' => $this->name, 'tmp_name' => __FILE__, 'error' => UPLOAD_ERR_OK];
+		}
+	};
+	$component->importFileAction();
+
+	return array_map(static fn($error) => $error->getMessage(), $component->getErrors());
+};
+
+CurrentUser::$id = 5;
+CurrentUser::$isAdmin = false;
+CMain::$rights = ['shef.demo' => 'W'];
+
+Check::same('shell.php — отказ до записи на диск', $upload('shell.php'), ['Wrong file type']);
+Check::same('price.xml при accept .csv — отказ', $upload('price.xml'), ['Wrong file type']);
+Check::same('price.csv — к записи на диск', $upload('price.csv'), ['Not upload file for import']);
 
 Check::group('права — раньше, чем модуль и объект импорта');
 

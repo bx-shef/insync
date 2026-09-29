@@ -29,6 +29,6 @@ final class Headers
 	
 	public static function isSecret(string $name): bool
 	{
-		return 1 === preg_match('/authorization|token|key|secret|password|cookie|session/i', $name);
+		return 1 === preg_match('/auth|token|key|secret|pass|cookie|session|sign|access/i', $name);
 	}
 }

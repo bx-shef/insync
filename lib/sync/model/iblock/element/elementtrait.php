@@ -96,6 +96,7 @@ trait ElementTrait
 	 * 
 	 * @return $this
 	 * @throws \LogicException
+	 * @throws \Bitrix\Main\InvalidOperationException старый API не записал картинку
 	 */
 	public function configurePicture(
 		string $fieldName,

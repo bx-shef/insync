@@ -76,9 +76,10 @@ jobs:
       - name: Забрать репозиторий
         uses: actions/checkout@v4
 
-      # Навыки здесь — копия. Источник — bx-shef/options, раскладывает их
-      # sync.sh --to. Целостность копии проверяет и tests/skills_test.php, а
-      # эта задача ловит другое: источник ушёл вперёд, а копия отстала.
+      # Навыки линейки здесь — копия. Источник — bx-shef/options, раскладывает
+      # их sync.sh --to. Свои навыки shef.insync перечислены в LOCAL.MANIFEST,
+      # источник их не сверяет. Целостность проверяет и tests/skills_test.php,
+      # а эта задача ловит другое: источник ушёл вперёд, а копия отстала.
       # Покраснела — разложите заново из shef.options, не правьте копию.
       - name: Навыки не отстали от источника
         run: .claude/skills/sync.sh --check https://raw.githubusercontent.com/bx-shef/options/main/.claude/skills/MANIFEST

@@ -6,6 +6,7 @@ use Bitrix\Main\ObjectException;
 use Bitrix\Main\Result;
 use Bitrix\Main\Error;
 use Bitrix\Main\Type\DateTime;
+use Bitrix\Main\Loader;
 use CAgent;
 
 /**
@@ -384,6 +385,49 @@ final class Manager
 		}
 		
 		return (string)($agent['MODULE_ID'] ?? '');
+	}
+	
+	/**
+	 * Модуль агента — только если это агент импорта: класс из строки агента
+	 * наследует \Shef\InSync\Agents\AAgent. Любой другой агент — null.
+	 *
+	 * Права на модуль проверяются по модулю агента, и без этой сверки «W» на
+	 * sale или crm давало включать и выключать штатные агенты ядра этих
+	 * модулей — то, что ядро открывает только администратору.
+	 */
+	public static function getImportAgentModuleId(int $id): null|string
+	{
+		if($id < 1)
+		{
+			return null;
+		}
+		
+		$agent = CAgent::GetList([], ['ID' => $id])->Fetch();
+		if(!is_array($agent))
+		{
+			return null;
+		}
+		
+		$moduleId = (string)($agent['MODULE_ID'] ?? '');
+		[$name] = static::parseName((string)($agent['NAME'] ?? ''));
+		$class = ltrim((string)strstr($name, '::', true), '\\');
+		if('' === $moduleId || '' === $class)
+		{
+			return null;
+		}
+		
+		// Класс агента лежит в его модуле: без подключения автозагрузка его
+		// не найдёт. Модуль — из b_agent, не из запроса.
+		try
+		{
+			Loader::includeModule($moduleId);
+		}
+		catch(\Throwable)
+		{
+			return null;
+		}
+		
+		return is_subclass_of($class, AAgent::class) ? $moduleId : null;
 	}
 	
 	/**

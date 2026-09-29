@@ -56,7 +56,7 @@ foreach($settings as $key => $section)
 
 Check::same('у каждой секции есть value и readonly', $shape, []);
 Check::same('обязательные модули — shef.options и shef.problems', $settings['requireModules']['value'], ['shef.options', 'shef.problems']);
-Check::same('расширение xmlreader обязательно', $settings['requirePhpExt']['value'], ['xmlreader']);
+Check::same('расширения xmlreader и mbstring обязательны', $settings['requirePhpExt']['value'], ['xmlreader', 'mbstring']);
 
 Check::group('registerNamespace — откуда брать библиотеки XML');
 

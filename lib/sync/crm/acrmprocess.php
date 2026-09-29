@@ -39,11 +39,6 @@ abstract class ACrmProcess
 	abstract public function getEntityTypeId(): int;
 	
 	/**
-	 * Построение фабрики для сущности
-	 *
-	 * @return Crm\Service\Factory
-	 */
-	/**
 	 * Фабрика CRM для типа сущности импорта.
 	 *
 	 * Хранится в свойстве объекта. Было static внутри метода, а такая

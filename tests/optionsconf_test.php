@@ -57,6 +57,8 @@ Check::same(
 	array_map('intval', $values)
 );
 
+Check::same('умолчание — то же, что у Constants', $days?->getDefValue(), (string)Constants::DEFAULT_MAX_DAY_DONE_FILE);
+
 $unlabeled = array_keys(array_filter((array)$days?->list, static fn($label): bool => '' === (string)$label || str_contains((string)$label, '#VALUE#')));
 Check::same('у каждого значения подпись с числом', $unlabeled, []);
 

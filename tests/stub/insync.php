@@ -104,6 +104,9 @@ namespace Bitrix\Main\DB
 			/** Что вернёт query()->fetch(). */
 			public static null|array $row = null;
 
+			/** Запрос, начинающийся с этой строки, падает — как DDL на чужой СУБД. */
+			public static null|string $fail = null;
+
 			public function getSqlHelper(): SqlHelper
 			{
 				return new SqlHelper();
@@ -116,6 +119,11 @@ namespace Bitrix\Main\DB
 
 			public function queryExecute($sql, array $binds = []): void
 			{
+				if(null !== static::$fail && str_starts_with($sql, static::$fail))
+				{
+					throw new \RuntimeException('SQL error: '.$sql);
+				}
+
 				static::$queries[] = $sql;
 
 				if(preg_match('/^DROP TABLE (\w+)/', $sql, $match))
@@ -183,6 +191,17 @@ namespace Bitrix\Main\ORM\Data
 			public static function getEntity(): Entity
 			{
 				return new Entity(static::class);
+			}
+
+			public static function getCollectionClass(): string
+			{
+				return \stdClass::class;
+			}
+
+			public static function createCollection(): object
+			{
+				$class = static::getCollectionClass();
+				return new $class();
 			}
 		}
 	}
@@ -458,6 +477,23 @@ namespace
 		function LocalRedirect($url): void
 		{
 			$GLOBALS['SH_INSYNC_TEST_REDIRECT'] = $url;
+		}
+	}
+}
+
+namespace Shef\InSync\Sync\Model
+{
+	if(!class_exists(EO_Sync_Collection::class, false))
+	{
+		/** Коллекцию ORM ядро собирает само: EO_Sync_Collection с сущностью таблицы. */
+		class EO_Sync_Collection
+		{
+			public object $entity;
+
+			public function __construct()
+			{
+				$this->entity = SyncTable::getEntity();
+			}
 		}
 	}
 }

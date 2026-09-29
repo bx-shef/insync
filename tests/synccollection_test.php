@@ -22,14 +22,7 @@ use Bitrix\Main\DB\Connection;
 use Bitrix\Main\DB\SqlHelper;
 use Shef\InSync\Sync\Model\SyncCollection;
 
-// Коллекцию ORM ядро собирает само: EO_Sync_Collection с сущностью таблицы.
-eval('namespace Shef\\InSync\\Sync\\Model;
-class EO_Sync_Collection
-{
-	public object $entity;
-	public function __construct() { $this->entity = SyncTable::getEntity(); }
-}');
-
+// Родитель EO_Sync_Collection — оболочка из tests/stub/insync.php.
 $collection = new SyncCollection();
 
 Check::group('условие запроса');

@@ -103,8 +103,9 @@ if($response->isSuccess())
 
 ## Таймауты
 
-Из опций объекта. Задавайте после конструктора (он заводит опции заново) и
-применяйте `reInitHttpParams()`:
+Из опций объекта. Задавайте после конструктора (он заводит опции заново);
+`sendRequest()` применяет их сам перед каждым запросом, `reInitHttpParams()`
+— чтобы применить сразу:
 
 ```php
 $client = new Supplier();
@@ -113,7 +114,7 @@ $client->addOptionCollection('socketTimeout', 10)
 	->reInitHttpParams();
 ```
 
-По умолчанию: соединение 30 с, чтение 60 с, `waitResponse` 2.
+По умолчанию: соединение 30 с, чтение 60 с, `waitResponse` — да.
 
 ## Секреты
 
@@ -122,7 +123,8 @@ $client->addOptionCollection('socketTimeout', 10)
   для них;
 * передавайте их **заголовком**. Заголовки с `authorization`, `token`, `key`,
   `secret`, `password`, `cookie`, `session` в имени уходят в лог маской
-  (`\Shef\InSync\Api\Headers::mask()`), а **параметры запроса — как есть**:
+  (`\Shef\InSync\Api\Headers::mask()`; ещё `auth`, `pass`, `sign`, `access`),
+  а **параметры запроса — как есть**:
   ключ в `?api_key=` окажется в логе.
 
 ## Большие объёмы
