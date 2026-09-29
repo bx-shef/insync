@@ -109,6 +109,15 @@ abstract class AAgent
 		);
 		
 		$listRows = $this->getSyncClassSyncTableEntity()::getList($conf)->fetchCollection();
+		
+		$staleOriginatorId = $this->strategy instanceof Strategy\AStrategy
+			? $this->strategy->getSupersededOriginatorId(static::getOriginatorId())
+			: null;
+		
+		if(null !== $staleOriginatorId)
+		{
+			$this->dropSuperseded($listRows, $staleOriginatorId);
+		}
 		// endregion ////
 		
 		// region Init Items ////
@@ -176,6 +185,11 @@ abstract class AAgent
 		// endregion ////
 		
 		// region Remove Items From SyncTable ////
+		if(null !== $staleOriginatorId)
+		{
+			$this->dropStaleTwins($listRows, $staleOriginatorId);
+		}
+		
 		$isUseOneRowDebug = $this->strategy->isUseOneRowDebug($this);
 		foreach($listRows as $row)
 		{
@@ -202,7 +216,18 @@ abstract class AAgent
 				continue;
 			}
 			
-			$row->deleteInterface();
+			try
+			{
+				$response = $row->deleteInterface();
+				if(!$response->isSuccess())
+				{
+					$result->addErrors($response->getErrors());
+				}
+			}
+			catch(Throwable $throwable)
+			{
+				$result->addError(Problems\Throwable\Manager::buildError($throwable, true));
+			}
 			
 		}
 		unset($listRows);
@@ -211,6 +236,88 @@ abstract class AAgent
 		Sync\Integration\Manager::sendPullForImportStatLocal();
 		
 		return $result;
+	}
+	
+	/**
+	 * Строки пачки под меткой ошибки, у которых в таблице есть свежая строка
+	 * с тем же внешним кодом, — устарели: удаляются и не разбираются.
+	 *
+	 * @param iterable<IElement> $listRows коллекция ORM пачки
+	 */
+	protected function dropSuperseded(object $listRows, string $staleOriginatorId): void
+	{
+		$staleList = [];
+		foreach($listRows as $row)
+		{
+			if($row->getInterfaceOriginatorId() === $staleOriginatorId)
+			{
+				$staleList[$row->getInterfaceOriginId()] = $row;
+			}
+		}
+		
+		if(empty($staleList))
+		{
+			return;
+		}
+		
+		$fresh = $this->getSyncClassSyncTableEntity()::getList([
+			'filter' => [
+				'=ORIGINATOR_ID' => static::getOriginatorId(),
+				'=ORIGIN_ID' => array_map('strval', array_keys($staleList)),
+			],
+			'select' => [
+				'ORIGIN_ID'
+			]
+		]);
+		
+		while($item = $fresh->fetch())
+		{
+			$row = $staleList[(string)$item['ORIGIN_ID']] ?? null;
+			if(null !== $row)
+			{
+				$row->deleteInterface();
+				$listRows->remove($row);
+			}
+		}
+	}
+	
+	/**
+	 * Свежая строка упала и уйдёт под метку ошибки — прежняя её копия там
+	 * устарела и мешала бы: внешний код уникален в пределах кода импорта.
+	 * Один запрос на пачку.
+	 *
+	 * @param iterable<IElement> $listRows коллекция ORM пачки
+	 */
+	protected function dropStaleTwins(object $listRows, string $staleOriginatorId): void
+	{
+		$failList = [];
+		foreach($listRows as $row)
+		{
+			if(
+				$row->getInterfaceStatus() === Sync\EStatus::Fail
+				&& $row->getInterfaceOriginatorId() === static::getOriginatorId()
+			)
+			{
+				$failList[] = $row->getInterfaceOriginId();
+			}
+		}
+		
+		if(empty($failList))
+		{
+			return;
+		}
+		
+		$twins = $this->getSyncClassSyncTableEntity()::getList([
+			'filter' => [
+				'=ORIGINATOR_ID' => $staleOriginatorId,
+				'=ORIGIN_ID' => $failList,
+			]
+		])->fetchCollection();
+		
+		foreach($twins as $twin)
+		{
+			$twin->deleteInterface();
+		}
 	}
 	
 	/**

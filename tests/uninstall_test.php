@@ -126,7 +126,7 @@ Check::same('поле ADDITIONAL расширено, внешний код ун�
 )), [
 	'CREATE TABLE '.TABLE,
 	'ALTER TABLE '.TABLE.' MODIFY ADDITIONAL MEDIUMTEXT;',
-	'CREATE UNIQUE INDEX '.TABLE.'_origin ON '.TABLE.' (ORIGINATOR_ID, ORIGIN_ID);',
+	'CREATE UNIQUE INDEX '.TABLE.'_origin ON '.TABLE.' (ORIGINATOR_ID(64), ORIGIN_ID(191));',
 ]);
 
 // DDL — только queryExecute(); query() здесь — чтение ключей таблицы.
@@ -159,9 +159,9 @@ Connection::$results = [
 	],
 ];
 $module->InstallDB();
-Check::same('первичный ключ — ID, внешний код уникален в пределах импорта, индексы 1.x сняты', $ddl(), [
+Check::same('первичный ключ — ID, внешний код уникален в пределах импорта, индексы 1.x сняты, ADDITIONAL — MEDIUMTEXT', $ddl(), [
 	'ALTER TABLE '.TABLE.' DROP PRIMARY KEY, DROP INDEX '.TABLE.'_origs, DROP INDEX '.TABLE.'_orig_id, DROP INDEX '.TABLE.'_originator_id, '
-	.'ADD COLUMN ID INT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST, ADD UNIQUE INDEX '.TABLE.'_origin (ORIGINATOR_ID, ORIGIN_ID);',
+	.'ADD COLUMN ID INT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST, MODIFY ADDITIONAL MEDIUMTEXT, ADD UNIQUE INDEX '.TABLE.'_origin (ORIGINATOR_ID(64), ORIGIN_ID(191));',
 ]);
 Check::same('таблица не пересоздаётся — строки целы', in_array(TABLE, Connection::$tables, true), true);
 
@@ -169,7 +169,7 @@ $module = $given();
 Connection::$results = [$keys => [['Column_name' => 'ORIGIN_ID', 'Seq_in_index' => '1']], $index => []];
 $module->InstallDB();
 Check::same('индексов 1.x нет — снимать нечего', $ddl(), [
-	'ALTER TABLE '.TABLE.' DROP PRIMARY KEY, ADD COLUMN ID INT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST, ADD UNIQUE INDEX '.TABLE.'_origin (ORIGINATOR_ID, ORIGIN_ID);',
+	'ALTER TABLE '.TABLE.' DROP PRIMARY KEY, ADD COLUMN ID INT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST, MODIFY ADDITIONAL MEDIUMTEXT, ADD UNIQUE INDEX '.TABLE.'_origin (ORIGINATOR_ID(64), ORIGIN_ID(191));',
 ]);
 
 $module = $given();

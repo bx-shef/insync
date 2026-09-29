@@ -37,6 +37,16 @@ class SyncTable extends DataManager
 {
 	use TraitList\Tools\XmlId;
 	
+	/**
+	 * Уникальность внешнего кода в пределах кода импорта. Префиксы — чтобы
+	 * индекс влез везде, где влезал первичный ключ 1.x (ORIGIN_ID целиком,
+	 * 255 символов): 64 + 191 = 255, в utf8 — 765 байт при пределе 767 для
+	 * старого формата строк. Код импорта длиннее 64 символов или внешний код
+	 * длиннее 191 сравниваются по началу — и код импорта длиннее 58 символов
+	 * не отличил бы «<код>.error» стратегии MarkFail от «<код>».
+	 */
+	public const UNIQUE_COLUMNS = '(ORIGINATOR_ID(64), ORIGIN_ID(191))';
+	
 	public static function getTableName(): string
 	{
 		return 'shef_insync_model';
@@ -119,7 +129,7 @@ class SyncTable extends DataManager
 	public static function init(): void
 	{
 		$connection = Application::getConnection();
-		$tableName = self::getTableName();
+		$tableName = static::getTableName();
 		
 		if($connection->isTableExists($tableName))
 		{
@@ -143,6 +153,8 @@ class SyncTable extends DataManager
 			// Строки 1.x уникальны по ORIGIN_ID, значит и по паре с кодом
 			// импорта: уникальный индекс встанет на любые данные 1.x. Индексы
 			// 1.x по префиксам колонок новый индекс покрывает — снимаются.
+			// ADDITIONAL — ещё раз: установщик 1.x глушил сбой DDL, и поле
+			// могло остаться TEXT (64 КБ).
 			$legacyIndexList = array_intersect(
 				[$tableName.'_origs', $tableName.'_orig_id', $tableName.'_originator_id'],
 				static::getIndexNames()
@@ -151,9 +163,11 @@ class SyncTable extends DataManager
 			$connection->queryExecute(sprintf(
 				'ALTER TABLE %1$s DROP PRIMARY KEY, %2$s'
 				.'ADD COLUMN ID INT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST, '
-				.'ADD UNIQUE INDEX %1$s_origin (ORIGINATOR_ID, ORIGIN_ID);',
+				.'MODIFY ADDITIONAL MEDIUMTEXT, '
+				.'ADD UNIQUE INDEX %1$s_origin %3$s;',
 				$tableName,
-				implode('', array_map(static fn(string $name): string => 'DROP INDEX '.$name.', ', $legacyIndexList))
+				implode('', array_map(static fn(string $name): string => 'DROP INDEX '.$name.', ', $legacyIndexList)),
+				static::UNIQUE_COLUMNS
 			));
 			
 			return;
@@ -172,8 +186,9 @@ class SyncTable extends DataManager
 			));
 			
 			$connection->queryExecute(sprintf(
-				'CREATE UNIQUE INDEX %1$s_origin ON %1$s (ORIGINATOR_ID, ORIGIN_ID);',
-				$tableName
+				'CREATE UNIQUE INDEX %1$s_origin ON %1$s %2$s;',
+				$tableName,
+				static::UNIQUE_COLUMNS
 			));
 		}
 		catch(\Throwable $throwable)
@@ -190,7 +205,7 @@ class SyncTable extends DataManager
 	public static function getPrimaryColumns(): array
 	{
 		$rows = Application::getConnection()
-			->query(sprintf("SHOW KEYS FROM %s WHERE Key_name = 'PRIMARY'", self::getTableName()))
+			->query(sprintf("SHOW KEYS FROM %s WHERE Key_name = 'PRIMARY'", static::getTableName()))
 			->fetchAll();
 		
 		usort($rows, static fn(array $a, array $b): int => (int)($a['Seq_in_index'] ?? 0) <=> (int)($b['Seq_in_index'] ?? 0));
@@ -204,7 +219,7 @@ class SyncTable extends DataManager
 	protected static function getIndexNames(): array
 	{
 		$rows = Application::getConnection()
-			->query(sprintf('SHOW INDEX FROM %s', self::getTableName()))
+			->query(sprintf('SHOW INDEX FROM %s', static::getTableName()))
 			->fetchAll();
 		
 		return array_values(array_unique(array_map(static fn(array $row): string => (string)($row['Key_name'] ?? ''), $rows)));
@@ -224,7 +239,7 @@ class SyncTable extends DataManager
 		{
 			$sql = sprintf(
 				'DROP TABLE %s;',
-				self::getTableName()
+				static::getTableName()
 			);
 			$connection->queryExecute($sql);
 			

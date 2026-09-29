@@ -10,8 +10,8 @@
  *    без расширения и process_<код>_… (файл, уже взятый в обработку);
  * 2. Utils::translation() без ключа lang — без warning. Было: warning на
  *    каждом новом элементе и разделе с именем;
- * 3. MarkFail убирает строку, упавшую раньше под «<код>.error» с тем же
- *    внешним кодом: иначе переименование упёрлось бы в уникальный индекс;
+ * 3. MarkFail ставит метку ошибки один раз и называет свой код устаревших
+ *    строк — их убирает агент (fromfileagent_test.php);
  * 4. трейт ID свойства до настройки бросает обещанный
  *    LogicException, а не Error «must not be accessed before initialization».
  */
@@ -51,43 +51,14 @@ catch(\Bitrix\Main\ArgumentException)
 }
 Check::same('пустое расширение — исключение, а не «файл с точкой в конце»', $emptyExtension, 'ArgumentException');
 
-Check::group('MarkFail: та же строка, упавшая раньше, уступает место');
+Check::group('MarkFail: метка ошибки');
 
-// Таблица импорта: запоминает, что искали и что удаляли.
-final class MarkFailTable
-{
-	public static array $found = [];
-	public static array $filter = [];
-	public static array $deleted = [];
-
-	public static function getList(array $parameters): object
-	{
-		static::$filter = $parameters['filter'] ?? [];
-
-		return new class(static::$found)
-		{
-			public function __construct(private array $rows) {}
-
-			public function fetch(): array|false
-			{
-				return array_shift($this->rows) ?? false;
-			}
-		};
-	}
-
-	public static function delete(int $id): void
-	{
-		static::$deleted[] = $id;
-	}
-}
-
-// Строка импорта: как EO_-объект ядра, знает свою таблицу через $dataClass.
+// Строка импорта: только код импорта и сохранение.
 final class MarkFailRow implements \Shef\InSync\Sync\IElement
 {
-	public static $dataClass = MarkFailTable::class;
 	public bool $saved = false;
 
-	public function __construct(private string $originatorId, private readonly string $originId) {}
+	public function __construct(private string $originatorId, private readonly string $originId = '') {}
 
 	public function setInterfaceOriginId(string $originId): static { return $this; }
 	public function getInterfaceOriginId(): string { return $this->originId; }
@@ -110,19 +81,16 @@ final class MarkFailRow implements \Shef\InSync\Sync\IElement
 
 $strategy = new \Shef\InSync\Sync\FromFile\Strategy\MarkFail();
 
-MarkFailTable::$found = [['ID' => 7]];
-$row = new MarkFailRow('price', '123');
+$row = new MarkFailRow('price');
 $strategy->processFail($row);
-Check::same('ищется двойник под меткой ошибки с тем же внешним кодом', MarkFailTable::$filter, ['=ORIGINATOR_ID' => 'price.error', '=ORIGIN_ID' => '123']);
-Check::same('…и удаляется', MarkFailTable::$deleted, [7]);
-Check::same('строка переименована и сохранена', [$row->getInterfaceOriginatorId(), $row->saved], ['price.error', true]);
+Check::same('строка уходит под метку и сохраняется', [$row->getInterfaceOriginatorId(), $row->saved], ['price.error', true]);
 
-MarkFailTable::$deleted = [];
-MarkFailTable::$filter = [];
-$row = new MarkFailRow('price.error', '123');
+$row = new MarkFailRow('price.error');
 $strategy->processFail($row);
-Check::same('уже под меткой — себя не удаляет и не ищет', [MarkFailTable::$filter, MarkFailTable::$deleted], [[], []]);
-Check::same('…и метку не удваивает', $row->getInterfaceOriginatorId(), 'price.error');
+Check::same('метка не удваивается', $row->getInterfaceOriginatorId(), 'price.error');
+
+Check::same('устаревшие строки MarkFail — под меткой', $strategy->getSupersededOriginatorId('price'), 'price.error');
+Check::same('у Simple отдельных нет', (new \Shef\InSync\Sync\FromFile\Strategy\Simple())->getSupersededOriginatorId('price'), null);
 
 Check::group('транслит');
 
