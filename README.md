@@ -68,8 +68,10 @@ composer require bxshef/insync
    правом «Запись» на модуль импорта — [подробно](https://github.com/bx-shef/insync/blob/main/docs/security.md).
 
 **Обновление с 1.x** — замена файлов не запускает установщик, а компоненты
-1.x в `/local/components/shef.insync` перекрыли бы новые. Порядок —
-[в процедуре проверки](https://github.com/bx-shef/insync/blob/main/docs/portal-check.md).
+1.x в `/local/components/shef.insync` перекрыли бы новые. И таблице импорта
+нужен новый ключ: **до вызова `SyncTable::init()` импорт не работает** —
+агенты на время обновления выключаются. Порядок —
+[в процедуре проверки](https://github.com/bx-shef/insync/blob/main/docs/portal-check.md), шаг B.
 
 # Как пользоваться
 

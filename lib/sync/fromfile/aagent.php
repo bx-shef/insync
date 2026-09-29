@@ -181,7 +181,20 @@ abstract class AAgent
 		{
 			if($row->getInterfaceStatus() === Sync\EStatus::Fail)
 			{
-				$this->strategy->processFail($row);
+				// Результат — в ответ агента: раньше сбой сохранения ошибочной
+				// строки терялся молча, а исключение обрывало пачку.
+				try
+				{
+					$response = $this->strategy->processFail($row);
+					if(!$response->isSuccess())
+					{
+						$result->addErrors($response->getErrors());
+					}
+				}
+				catch(Throwable $throwable)
+				{
+					$result->addError(Problems\Throwable\Manager::buildError($throwable, true));
+				}
 				continue;
 			}
 			elseif($isUseOneRowDebug)

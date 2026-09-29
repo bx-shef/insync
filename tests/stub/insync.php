@@ -104,6 +104,14 @@ namespace Bitrix\Main\DB
 			/** Что вернёт query()->fetch(). */
 			public static null|array $row = null;
 
+			/**
+			 * Ответы query() по началу текста запроса — строки fetchAll().
+			 * Запрос, которого здесь нет, получает $row.
+			 *
+			 * @var array<string, list<array>>
+			 */
+			public static array $results = [];
+
 			/** Запрос, начинающийся с этой строки, падает — как DDL на чужой СУБД. */
 			public static null|string $fail = null;
 
@@ -136,18 +144,28 @@ namespace Bitrix\Main\DB
 			{
 				static::$queries[] = $sql;
 
-				return new class(static::$row)
+				$rows = null === static::$row ? [] : [static::$row];
+				foreach(static::$results as $prefix => $result)
 				{
-					public function __construct(private readonly null|array $row) {}
+					if(str_starts_with((string)$sql, (string)$prefix))
+					{
+						$rows = $result;
+						break;
+					}
+				}
+
+				return new class($rows)
+				{
+					public function __construct(private array $rows) {}
 
 					public function fetch(): array|false
 					{
-						return $this->row ?? false;
+						return array_shift($this->rows) ?? false;
 					}
 
 					public function fetchAll(): array
 					{
-						return null === $this->row ? [] : [$this->row];
+						return $this->rows;
 					}
 				};
 			}
@@ -157,6 +175,12 @@ namespace Bitrix\Main\DB
 
 namespace Bitrix\Main\ORM\Data
 {
+	if(!class_exists(Result::class))
+	{
+		/** Результат ORM: для тестов — тот же Result ядра. */
+		class Result extends \Bitrix\Main\Result {}
+	}
+
 	if(!class_exists(DataManager::class))
 	{
 		/** ORM-сущность: имя таблицы и создание — то, что зовёт установщик. */

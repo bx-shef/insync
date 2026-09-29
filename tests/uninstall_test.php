@@ -135,20 +135,62 @@ $ddl = static fn(): array => array_values(array_filter(
 	static fn(string $sql): bool => !str_starts_with($sql, 'SHOW ')
 ));
 
+$keys = "SHOW KEYS FROM ".TABLE." WHERE Key_name = 'PRIMARY'";
+$index = 'SHOW INDEX FROM '.TABLE;
+
 $before = $ddl();
-Connection::$row = ['Column_name' => 'ID'];
+Connection::$results = [$keys => [['Column_name' => 'ID', 'Seq_in_index' => '1']]];
 $module->InstallDB();
 Check::same('повторная установка таблицу 2.x не трогает', $ddl(), $before);
+Check::same('…ключ читается ровно этим запросом', in_array($keys, Connection::$queries, true), true);
 
 Check::group('установка на таблицу 1.x: ключ переводится');
 
 $module = $given();
-Connection::$row = ['Column_name' => 'ORIGIN_ID'];
+Connection::$results = [
+	$keys => [['Column_name' => 'ORIGIN_ID', 'Seq_in_index' => '1']],
+	$index => [
+		['Key_name' => 'PRIMARY'],
+		['Key_name' => TABLE.'_origs'],
+		['Key_name' => TABLE.'_origs'],
+		['Key_name' => TABLE.'_orig_id'],
+		['Key_name' => TABLE.'_originator_id'],
+		['Key_name' => 'project_own_index'],
+	],
+];
 $module->InstallDB();
-Check::same('первичный ключ — ID, внешний код уникален в пределах импорта', $ddl(), [
-	'ALTER TABLE '.TABLE.' DROP PRIMARY KEY, ADD COLUMN ID INT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST, ADD UNIQUE INDEX '.TABLE.'_origin (ORIGINATOR_ID, ORIGIN_ID);',
+Check::same('первичный ключ — ID, внешний код уникален в пределах импорта, индексы 1.x сняты', $ddl(), [
+	'ALTER TABLE '.TABLE.' DROP PRIMARY KEY, DROP INDEX '.TABLE.'_origs, DROP INDEX '.TABLE.'_orig_id, DROP INDEX '.TABLE.'_originator_id, '
+	.'ADD COLUMN ID INT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST, ADD UNIQUE INDEX '.TABLE.'_origin (ORIGINATOR_ID, ORIGIN_ID);',
 ]);
 Check::same('таблица не пересоздаётся — строки целы', in_array(TABLE, Connection::$tables, true), true);
+
+$module = $given();
+Connection::$results = [$keys => [['Column_name' => 'ORIGIN_ID', 'Seq_in_index' => '1']], $index => []];
+$module->InstallDB();
+Check::same('индексов 1.x нет — снимать нечего', $ddl(), [
+	'ALTER TABLE '.TABLE.' DROP PRIMARY KEY, ADD COLUMN ID INT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST, ADD UNIQUE INDEX '.TABLE.'_origin (ORIGINATOR_ID, ORIGIN_ID);',
+]);
+
+$module = $given();
+Connection::$results = [$keys => [['Column_name' => 'ORIGIN_ID', 'Seq_in_index' => '1']], $index => []];
+Connection::$fail = 'ALTER TABLE '.TABLE.' DROP PRIMARY';
+Check::same('перевод не прошёл — установка отказывает', $module->InstallDB(), false);
+Check::same('…а таблица 1.x с данными на месте', [in_array(TABLE, Connection::$tables, true), array_filter($ddl(), static fn($sql) => str_starts_with($sql, 'DROP TABLE'))], [true, []]);
+Connection::$fail = null;
+
+foreach([
+	'составной ключ' => [['Column_name' => 'ORIGINATOR_ID', 'Seq_in_index' => '1'], ['Column_name' => 'ORIGIN_ID', 'Seq_in_index' => '2']],
+	'ключа нет' => [],
+	'ключ по другой колонке' => [['Column_name' => 'TITLE', 'Seq_in_index' => '1']],
+] as $case => $primary)
+{
+	$module = $given();
+	Connection::$results = [$keys => $primary, $index => []];
+	Check::same($case.' — отказ без DDL', [$module->InstallDB(), $ddl()], [false, []]);
+}
+
+Connection::$results = [];
 Connection::$row = null;
 
 Check::group('установка: таблица не создалась — модуль не установлен');

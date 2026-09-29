@@ -109,7 +109,7 @@ class SyncTable extends DataManager
 	 * Таблица импорта: создать, а таблицу 1.x — перевести на ключ 2.x.
 	 *
 	 * Вызывается установщиком и безопасна повторно: готовую таблицу 2.x не
-	 * трогает. Порталу, обновлённому заменой файлов, её зовут руками
+	 * трогает, таблицу с незнакомым ключом — тоже (исключение). Порталу, обновлённому заменой файлов, её зовут руками
 	 * (docs/portal-check.md, шаг B). DDL — MySQL, как и у 1.x.
 	 *
 	 * @throws ArgumentException
@@ -123,17 +123,38 @@ class SyncTable extends DataManager
 		
 		if($connection->isTableExists($tableName))
 		{
-			if(static::isLegacyPrimary())
+			$primary = static::getPrimaryColumns();
+			if($primary === ['ID'])
 			{
-				// Строки 1.x уникальны по ORIGIN_ID, значит и по паре с кодом
-				// импорта: уникальный индекс встанет на любые данные 1.x.
-				$connection->queryExecute(sprintf(
-					'ALTER TABLE %1$s DROP PRIMARY KEY, '
-					.'ADD COLUMN ID INT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST, '
-					.'ADD UNIQUE INDEX %1$s_origin (ORIGINATOR_ID, ORIGIN_ID);',
-					$tableName
+				return;
+			}
+			
+			// Не ключ 2.x и не ключ 1.x — таблицу делал не модуль: не трогаем
+			// и говорим об этом, а не перестраиваем чужую схему.
+			if($primary !== ['ORIGIN_ID'])
+			{
+				throw new SystemException(sprintf(
+					'Unknown primary key of %s: [%s]',
+					$tableName,
+					implode(', ', $primary)
 				));
 			}
+			
+			// Строки 1.x уникальны по ORIGIN_ID, значит и по паре с кодом
+			// импорта: уникальный индекс встанет на любые данные 1.x. Индексы
+			// 1.x по префиксам колонок новый индекс покрывает — снимаются.
+			$legacyIndexList = array_intersect(
+				[$tableName.'_origs', $tableName.'_orig_id', $tableName.'_originator_id'],
+				static::getIndexNames()
+			);
+			
+			$connection->queryExecute(sprintf(
+				'ALTER TABLE %1$s DROP PRIMARY KEY, %2$s'
+				.'ADD COLUMN ID INT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST, '
+				.'ADD UNIQUE INDEX %1$s_origin (ORIGINATOR_ID, ORIGIN_ID);',
+				$tableName,
+				implode('', array_map(static fn(string $name): string => 'DROP INDEX '.$name.', ', $legacyIndexList))
+			));
 			
 			return;
 		}
@@ -163,18 +184,30 @@ class SyncTable extends DataManager
 	}
 	
 	/**
-	 * Первичный ключ таблицы — ORIGIN_ID, как в 1.x.
+	 * Колонки первичного ключа таблицы по порядку: 2.x — ['ID'], 1.x —
+	 * ['ORIGIN_ID'].
 	 */
-	public static function isLegacyPrimary(): bool
+	public static function getPrimaryColumns(): array
 	{
-		$columns = array_column(
-			Application::getConnection()
-				->query(sprintf("SHOW KEYS FROM %s WHERE Key_name = 'PRIMARY'", self::getTableName()))
-				->fetchAll(),
-			'Column_name'
-		);
+		$rows = Application::getConnection()
+			->query(sprintf("SHOW KEYS FROM %s WHERE Key_name = 'PRIMARY'", self::getTableName()))
+			->fetchAll();
 		
-		return $columns === ['ORIGIN_ID'];
+		usort($rows, static fn(array $a, array $b): int => (int)($a['Seq_in_index'] ?? 0) <=> (int)($b['Seq_in_index'] ?? 0));
+		
+		return array_values(array_map(static fn(array $row): string => (string)($row['Column_name'] ?? ''), $rows));
+	}
+	
+	/**
+	 * Имена индексов таблицы.
+	 */
+	protected static function getIndexNames(): array
+	{
+		$rows = Application::getConnection()
+			->query(sprintf('SHOW INDEX FROM %s', self::getTableName()))
+			->fetchAll();
+		
+		return array_values(array_unique(array_map(static fn(array $row): string => (string)($row['Key_name'] ?? ''), $rows)));
 	}
 	
 	/**
