@@ -39,6 +39,17 @@ Check::same(
 Check::same('точка в префиксе — буквально', FileMask::isMatch('priceX1.csv', 'price.', 'csv'), false);
 Check::same('несколько расширений через «|»', FileMask::isMatch('cart-1.zip', 'cart-', 'xml|zip'), true);
 
+try
+{
+	FileMask::build('price-', '');
+	$emptyExtension = 'нет исключения';
+}
+catch(\Bitrix\Main\ArgumentException)
+{
+	$emptyExtension = 'ArgumentException';
+}
+Check::same('пустое расширение — исключение, а не «файл с точкой в конце»', $emptyExtension, 'ArgumentException');
+
 Check::group('транслит');
 
 Check::same('без lang — без warning', Utils::translation('Прайс'), 'Прайс');

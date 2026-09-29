@@ -110,32 +110,43 @@ class SyncTable extends DataManager
 		{
 			$documentsEntity->createDbTable();
 			
-			$sql = sprintf(
-				'ALTER TABLE %s MODIFY ADDITIONAL MEDIUMTEXT;',
-				self::getTableName()
-			);
-			$connection->queryExecute($sql);
+			// Таблица без поля MEDIUMTEXT и индексов — не та таблица: повторная
+			// установка увидела бы, что она «есть», и пропустила бы всё ниже.
+			// Упало — убираем свою недоделанную и отдаём ошибку дальше.
+			try
+			{
+				$sql = sprintf(
+					'ALTER TABLE %s MODIFY ADDITIONAL MEDIUMTEXT;',
+					self::getTableName()
+				);
+				$connection->queryExecute($sql);
 			
-			$sql = sprintf(
-				'CREATE INDEX %s_origs ON %s ( ORIGIN_ID(40), ORIGINATOR_ID(18) );',
-				self::getTableName(),
-				self::getTableName()
-			);
-			$connection->queryExecute($sql);
+				$sql = sprintf(
+					'CREATE INDEX %s_origs ON %s ( ORIGIN_ID(40), ORIGINATOR_ID(18) );',
+					self::getTableName(),
+					self::getTableName()
+				);
+				$connection->queryExecute($sql);
 			
-			$sql = sprintf(
-				'CREATE INDEX %s_orig_id ON %s ( ORIGIN_ID(40) );',
-				self::getTableName(),
-				self::getTableName()
-			);
-			$connection->queryExecute($sql);
+				$sql = sprintf(
+					'CREATE INDEX %s_orig_id ON %s ( ORIGIN_ID(40) );',
+					self::getTableName(),
+					self::getTableName()
+				);
+				$connection->queryExecute($sql);
 			
-			$sql = sprintf(
-				'CREATE INDEX %s_originator_id ON %s ( ORIGINATOR_ID(18) );',
-				self::getTableName(),
-				self::getTableName()
-			);
-			$connection->queryExecute($sql);
+				$sql = sprintf(
+					'CREATE INDEX %s_originator_id ON %s ( ORIGINATOR_ID(18) );',
+					self::getTableName(),
+					self::getTableName()
+				);
+				$connection->queryExecute($sql);
+			}
+			catch(\Throwable $throwable)
+			{
+				$connection->queryExecute(sprintf('DROP TABLE %s', self::getTableName()));
+				throw $throwable;
+			}
 			
 			unset($sql);
 		}

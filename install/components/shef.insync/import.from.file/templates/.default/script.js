@@ -66,7 +66,7 @@ BX.ShInSync.ImportFromFileController.prototype = {
 			// Текст ошибки — из разбора файла поставщика: данные, не разметка.
 			var message = ((error || {}).errors || [])
 				.map(function(item) { return (item || {}).message || ''; })
-				.join('; ') || String(error);
+				.join('; ') || 'Ошибка загрузки файла';
 
 			BX.UI.Notification.Center.notify({
 				content: BX.util.htmlspecialchars(message),

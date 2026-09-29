@@ -5,7 +5,8 @@ namespace Shef\InSync\Sync\FromFile;
 /**
  * Какие файлы каталога импорта забирает getExistFiles().
  *
- * Имя начинается с префикса, расширение — одно из перечисленных через «|».
+ * Имя начинается с префикса, расширение — одно из перечисленных через «|»,
+ * пустое — ArgumentException: иначе брался бы файл с точкой в конце.
  * Было "/$name.+\.($extension)*$/": без якоря и без экранирования — брались
  * old-price.csv, файл без расширения и process_<код>_… того же каталога,
  * то есть файл, который уже в обработке.
@@ -18,6 +19,11 @@ final class FileMask
 			static fn(string $item): string => preg_quote($item, '/'),
 			array_filter(explode('|', $extension), static fn(string $item): bool => $item !== '')
 		);
+
+		if(empty($extensionList))
+		{
+			throw new \Bitrix\Main\ArgumentException('Extension is empty', 'extension');
+		}
 
 		return '/^'.preg_quote($prefix, '/').'.*\.('.implode('|', $extensionList).')$/i';
 	}

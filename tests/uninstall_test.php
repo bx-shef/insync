@@ -140,7 +140,17 @@ Check::same('InstallDB() сообщает об отказе', $module->InstallDB
 Check::same('модуль снят с регистрации', CoreCalls::$unregistered, ['shef.insync']);
 Check::same('причина — для формы ошибки', str_contains((string)$GLOBALS['APPLICATION']->exception, 'CREATE INDEX'), true);
 
+Check::same('недоделанная таблица убрана', in_array(TABLE, Connection::$tables, true), false);
+
 Connection::$fail = null;
+Connection::$queries = [];
+$module = $given();
+Connection::$tables = [];
+Check::same('повторная установка после сбоя', $module->InstallDB(), true);
+Check::same('…строит таблицу целиком, с индексами', count(array_filter(
+	Connection::$queries,
+	static fn(string $sql): bool => str_starts_with($sql, 'CREATE INDEX')
+)), 3);
 
 Check::group('удаление: таблица не удалилась — след в журнале');
 

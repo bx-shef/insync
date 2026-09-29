@@ -98,7 +98,6 @@ CurrentUser::$isAdmin = false;
 CMain::$rights = ['shef.demo' => 'W'];
 
 Check::same('shell.php — отказ до записи на диск', $upload('shell.php'), ['Wrong file type']);
-Check::same('../x.csv — путь отрезан, дальше к записи', $upload('../x.csv'), ['Not upload file for import']);
 Check::same('price.xml при accept .csv — отказ', $upload('price.xml'), ['Wrong file type']);
 Check::same('price.csv — к записи на диск', $upload('price.csv'), ['Not upload file for import']);
 

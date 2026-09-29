@@ -67,6 +67,11 @@ final class ImportAgent extends \\Shef\\InSync\\Agents\\AAgent
 	public function action(): \\Bitrix\\Main\\Result { throw new \\LogicException("не должен вызываться"); }
 }');
 
+// Агенты ядра — существующие классы, не наследники AAgent: без них тест
+// зеленел бы и на проверке «класс есть», а на портале классы ядра есть.
+eval('class CEvent { public static function CheckEvents(): string { return ""; } }');
+eval('namespace Bitrix\\Sale; class Recurring { public static function doRecurring(): string { return ""; } }');
+
 CAgent::$agents = [
 	7 => ['ID' => '7', 'MODULE_ID' => 'shef.demo', 'NAME' => '\\Shef\\Demo\\ImportAgent::process();', 'ACTIVE' => 'N'],
 	8 => ['ID' => '8', 'MODULE_ID' => 'main', 'NAME' => 'CEvent::CheckEvents();', 'ACTIVE' => 'Y'],
@@ -212,6 +217,8 @@ $provider->resolveComponent('shef.insync:redirect~//evil.example/', new \Bitrix\
 Check::same('и без схемы тоже', $GLOBALS['SH_INSYNC_TEST_REDIRECT'] ?? null, null);
 $provider->resolveComponent('shef.insync:redirect~/\\evil.example/', new \Bitrix\Main\Web\Uri('/page/'));
 Check::same('и «/\\» — браузер читает его как «//»', $GLOBALS['SH_INSYNC_TEST_REDIRECT'] ?? null, null);
+$provider->resolveComponent("shef.insync:redirect~/\t/evil.example/", new \Bitrix\Main\Web\Uri('/page/'));
+Check::same('и «/<tab>/» — браузер вырезает табуляцию', $GLOBALS['SH_INSYNC_TEST_REDIRECT'] ?? null, null);
 $provider->resolveComponent('shef.insync:redirect~/bitrix/admin/perfmon_table.php', new \Bitrix\Main\Web\Uri('/page/'));
 Check::same('внутри портала — да', $GLOBALS['SH_INSYNC_TEST_REDIRECT'] ?? null, '/bitrix/admin/perfmon_table.php');
 
