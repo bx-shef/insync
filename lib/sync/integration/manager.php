@@ -21,17 +21,4 @@ class Manager
 			]
 		);
 	}
-	
-	/**
-	 * Возвращает ссылку на таблицу shef_insync_model в админке
-	 * @return string
-	 */
-	public static function getUrlShefInsyncModel(): string
-	{
-		return sprintf(
-			'/bitrix/admin/perfmon_table.php?lang=%s&table_name=%s',
-			\Bitrix\Main\Application::getInstance()->getContext()->getLanguage(),
-			'shef_insync_model'
-		);
-	}
 }

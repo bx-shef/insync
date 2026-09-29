@@ -30,9 +30,6 @@
 | FromFile\Strategy\MarkFail | ошибочные помечает маркером `.error` в коде импорта; берутся снова |
 | FromFile\Strategy\HideFail | ошибочные помечает и больше не берёт |
 
-`\Shef\InSync\Sync\FromFile\AAgent::actionRabbitMq()` — та же обработка для
-строк, переданных снаружи (очередь сообщений), а не выбранных из таблицы.
-
 Статусы строк — `\Shef\InSync\Sync\EStatus`: `U` — не определён, `N` — новая,
 `P` — в работе, `S` — успешно, `F` — ошибка.
 
@@ -126,17 +123,6 @@ $statistic = $collection->getStatistic();
 Работает через модель `EO_`. Наследник `\Bitrix\Catalog\ProductTable`.
 
 Добавлена связь со ставкой НДС `SH_VAT` с `\Bitrix\Catalog\VatTable`.
-
-### [`Shef\InSync\Sync\Model\Hl\Demo`] HL
-
-Приведён пример того, как должна выглядеть модель.
-
-Алгоритм её построения:
-
-* Делаем HL в админке руками/программно.
-* Идем в таблицу БД и [генерируем ORM](https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=43&LESSON_ID=2410&LESSON_PATH=3913.3516.5748.2410).
-* Далее делаем [аннотацию](https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=43&LESSON_ID=11733&LESSON_PATH=3913.3516.5748.11733).
-* И допиливаем руками переводя названий колонок.
 
 ## Драйверы
 Надстройка над штатным API для чтения/записи данных.

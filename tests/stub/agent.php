@@ -5,7 +5,8 @@
  * \Shef\InSync\Agents\AAgent и клиент API \Shef\InSync\Api\AConnector, —
  * и процесс импорта из файла, — ровно столько, сколько нужно их тестам:
  * aagent_test.php, access_test.php (агент импорта против агента ядра),
- * connector_test.php (что уходит в лог), upload_test.php (загрузка файла).
+ * connector_test.php (что уходит в лог), upload_test.php (загрузка файла),
+ * fromfileagent_test.php (агент разбора таблицы импорта).
  */
 
 namespace Bitrix\Main
@@ -86,7 +87,12 @@ namespace Shef\Options\TraitList\Tools
 {
 	trait DateTime
 	{
-		protected function initDateTime(): void {}
+		protected null|\Bitrix\Main\Type\DateTime $curDateTime = null;
+
+		protected function initDateTime(): void
+		{
+			$this->curDateTime = new \Bitrix\Main\Type\DateTime('2026-09-29 10:00:00');
+		}
 	}
 	trait SelfClass {}
 
@@ -171,6 +177,8 @@ namespace Shef\Problems\Factory\Trait
 		{
 			static::$records[] = $record;
 		}
+
+		public function debug(string $message, array $context = []): void {}
 	}
 
 	trait LoggerProblems
@@ -189,6 +197,7 @@ namespace Shef\Problems\Factory\Trait
 
 		public function configureLogger(TestLogger $logger): static
 		{
+			$this->logger = $logger;
 			return $this;
 		}
 	}
@@ -209,6 +218,7 @@ namespace Shef\Problems\Factory\Trait
 
 		public function configureDebugger(TestLogger $debugger): static
 		{
+			$this->debugger = $debugger;
 			return $this;
 		}
 	}

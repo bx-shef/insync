@@ -56,7 +56,7 @@ Composer разворачивает в целевой каталог **коре�
 | `sync/` | интерфейсы импорта (`IProcess`, `IElement`, …), `EStatus`, `AProcess` |
 | `sync/fromfile/` | импорт файлов: `AFileProcess`, `ACsvProcess`, `AXmlProcess`, агент разбора `AAgent`, стратегии `Strategy\*` |
 | `sync/crm/` | `ACrmProcess` — импорт из сущностей CRM |
-| `sync/model/` | таблица импорта `SyncTable`, модели инфоблоков, каталога, складов, пример HL |
+| `sync/model/` | таблица импорта `SyncTable`, модели инфоблоков, каталога, складов |
 | `sync/integration/` | `Manager` — push-обновление страницы статистики |
 | `main/` | `Constants`, `Utils`, `Access` — кто управляет импортом |
 | `main/options/` | опции страницы настроек для модулей импорта: агент и пошаговый импорт |

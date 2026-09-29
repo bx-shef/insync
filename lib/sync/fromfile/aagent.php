@@ -109,6 +109,19 @@ abstract class AAgent
 		);
 		
 		$listRows = $this->getSyncClassSyncTableEntity()::getList($conf)->fetchCollection();
+		
+		// Отладка одной строки повторяема и ничего не удаляет.
+		$staleOriginatorId = (
+			$this->strategy instanceof Strategy\AStrategy
+			&& !$this->strategy->isUseOneRowDebug($this)
+		)
+			? $this->strategy->getSupersededOriginatorId(static::getOriginatorId())
+			: null;
+		
+		if(null !== $staleOriginatorId)
+		{
+			$this->dropSuperseded($listRows, $staleOriginatorId, $result);
+		}
 		// endregion ////
 		
 		// region Init Items ////
@@ -176,12 +189,30 @@ abstract class AAgent
 		// endregion ////
 		
 		// region Remove Items From SyncTable ////
+		if(null !== $staleOriginatorId)
+		{
+			$this->dropStaleTwins($listRows, $staleOriginatorId, $result);
+		}
+		
 		$isUseOneRowDebug = $this->strategy->isUseOneRowDebug($this);
 		foreach($listRows as $row)
 		{
 			if($row->getInterfaceStatus() === Sync\EStatus::Fail)
 			{
-				$this->strategy->processFail($row);
+				// Результат — в ответ агента: раньше сбой сохранения ошибочной
+				// строки терялся молча, а исключение обрывало пачку.
+				try
+				{
+					$response = $this->strategy->processFail($row);
+					if(!$response->isSuccess())
+					{
+						$result->addErrors($response->getErrors());
+					}
+				}
+				catch(Throwable $throwable)
+				{
+					$result->addError(Problems\Throwable\Manager::buildError($throwable, true));
+				}
 				continue;
 			}
 			elseif($isUseOneRowDebug)
@@ -189,7 +220,7 @@ abstract class AAgent
 				continue;
 			}
 			
-			$row->deleteInterface();
+			static::deleteRow($row, $result);
 			
 		}
 		unset($listRows);
@@ -201,86 +232,124 @@ abstract class AAgent
 	}
 	
 	/**
-	 * Обработка строк, переданных снаружи, а не выбранных из таблицы импорта.
+	 * Строки пачки под меткой ошибки, у которых в таблице есть свежая строка
+	 * с тем же внешним кодом, — устарели: удаляются и не разбираются.
 	 *
-	 * Пришёл из рабочей копии 1.2.12: так строки отдаёт очередь сообщений
-	 * (модуль shef.rabbitmq). Строки не удаляются из таблицы и не
-	 * сохраняются — только помечаются статусом и сообщением; что с ними делать
-	 * дальше, решает вызывающий.
-	 *
-	 * @todo make collection
-	 *
-	 * @param IElement[] $listRows
+	 * @param iterable<IElement> $listRows коллекция ORM пачки
 	 */
-	public function actionRabbitMq(array $listRows): Result
+	protected function dropSuperseded(object $listRows, string $staleOriginatorId, Result $result): void
 	{
-		$result = new Result();
-		
-		// region Init Items ////
+		$staleList = [];
 		foreach($listRows as $row)
 		{
-			if(!($row instanceof IElement))
+			if($row->getInterfaceOriginatorId() === $staleOriginatorId)
 			{
-				throw new LogicException('$row not implement IElement');
+				$staleList[static::normalizeOriginId($row->getInterfaceOriginId())] = $row;
 			}
-			
-			$this->prepareSyncByRow($row);
 		}
-		// endregion ////
 		
-		// region Process Items ////
+		if(empty($staleList))
+		{
+			return;
+		}
+		
+		$fresh = $this->getSyncClassSyncTableEntity()::getList([
+			'filter' => [
+				'=ORIGINATOR_ID' => static::getOriginatorId(),
+				'=ORIGIN_ID' => array_map(static fn(IElement $row): string => $row->getInterfaceOriginId(), array_values($staleList)),
+			],
+			'select' => [
+				'ORIGIN_ID'
+			]
+		]);
+		
+		while($item = $fresh->fetch())
+		{
+			$row = $staleList[static::normalizeOriginId((string)$item['ORIGIN_ID'])] ?? null;
+			if(null !== $row)
+			{
+				// Сначала из пачки, потом из таблицы: удалённый объект ORM
+				// может потерять первичный ключ, и remove() его не нашёл бы.
+				// Не удалилась — строка вне пачки, повтор на следующем запуске.
+				$listRows->remove($row);
+				static::deleteRow($row, $result);
+			}
+		}
+	}
+	
+	/**
+	 * Свежие строки пачки разобраны — их прежние копии под меткой ошибки
+	 * устарели, где бы в таблице они ни лежали: удачный повтор вчерашней
+	 * записал бы старые данные, а упавшая свежая, уходя под метку, упёрлась бы
+	 * в индекс. Один запрос на пачку.
+	 *
+	 * @param iterable<IElement> $listRows коллекция ORM пачки
+	 */
+	protected function dropStaleTwins(object $listRows, string $staleOriginatorId, Result $result): void
+	{
+		$freshList = [];
 		foreach($listRows as $row)
 		{
-			try
+			if($row->getInterfaceOriginatorId() === static::getOriginatorId())
 			{
-				$response = $this->processRow($row);
-				$responseResult = static::getRowResult($response);
-				
-				if(!$response->isSuccess())
-				{
-					$result->addErrors($response->getErrors());
-					
-					$row->setInterfaceStatus(Sync\EStatus::Fail);
-					$row->setInterfaceMessage(implode(';', $response->getErrorMessages()));
-				}
-				elseif($responseResult instanceof Result)
-				{
-					$row->setInterfaceMessage(
-						$responseResult->isSuccess()
-							? implode(';', (array)(($responseResult->getData()['data'] ?? null)?->results ?? []))
-							: implode(';', $responseResult->getErrorMessages())
-					);
-				}
-				
-				unset($response, $responseResult);
-			}
-			catch(Throwable $throwable)
-			{
-				$error = Problems\Throwable\Manager::buildError($throwable, true);
-				$result->addError($error);
-				$row->setInterfaceStatus(Sync\EStatus::Fail);
-				$row->setInterfaceMessage($error->getMessage());
-				
-				unset($error);
+				$freshList[] = $row->getInterfaceOriginId();
 			}
 		}
-		// endregion ////
 		
-		// region Debug ////
-		if($this->isDebug())
+		if(empty($freshList))
 		{
-			$this->debugger->debug(
-				'RabbitMq action result',
-				[
-					'items' => $listRows
-				]
-			);
+			return;
 		}
-		// endregion ////
 		
-		Sync\Integration\Manager::sendPullForImportStatLocal();
+		$twins = $this->getSyncClassSyncTableEntity()::getList([
+			'filter' => [
+				'=ORIGINATOR_ID' => $staleOriginatorId,
+				'=ORIGIN_ID' => $freshList,
+			],
+			// Без ADDITIONAL: строку удаляем, данные не нужны. Первичный
+			// ключ ORM добавляет к выборке объектов сам.
+			'select' => [
+				'ORIGINATOR_ID',
+				'ORIGIN_ID',
+			]
+		])->fetchCollection();
 		
-		return $result;
+		foreach($twins as $twin)
+		{
+			static::deleteRow($twin, $result);
+		}
+	}
+	
+	/**
+	 * Удаление строки: сбой — в результат агента, пачка идёт дальше.
+	 */
+	protected static function deleteRow(IElement $row, Result $result): bool
+	{
+		try
+		{
+			$response = $row->deleteInterface();
+			if(!$response->isSuccess())
+			{
+				$result->addErrors($response->getErrors());
+				return false;
+			}
+		}
+		catch(Throwable $throwable)
+		{
+			$result->addError(Problems\Throwable\Manager::buildError($throwable, true));
+			return false;
+		}
+		
+		return true;
+	}
+	
+	/**
+	 * Внешний код так, как его сравнивает MySQL: без учёта регистра и
+	 * пробелов в конце. Иначе «ABC» из выборки не нашёл бы «abc» пачки.
+	 */
+	protected static function normalizeOriginId(string $originId): string
+	{
+		return mb_strtolower(rtrim($originId, ' '));
 	}
 	
 	/**

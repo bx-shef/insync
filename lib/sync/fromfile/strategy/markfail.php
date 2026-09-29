@@ -55,5 +55,12 @@ class MarkFail
 		return $row->saveInterface();
 	}
 	
-	
+	/**
+	 * Ошибочные строки лежат под «<код>.error»: свежая строка с тем же
+	 * внешним кодом делает их устаревшими.
+	 */
+	public function getSupersededOriginatorId(string $originatorId): ?string
+	{
+		return $originatorId.static::Marker;
+	}
 }
