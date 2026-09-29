@@ -42,7 +42,20 @@
   `PRICE`, `PRICE_SCALE`, `CURRENCY`; прочие ключи `$params` (`EXTRA_ID`,
   `QUANTITY_FROM` …) при обновлении не пишутся — раньше уходили как есть;
 * кнопки агентов (страница настроек, статистика) работают только для агентов
-  импорта — наследников `Agents\AAgent`.
+  импорта — наследников `Agents\AAgent`;
+* таблица импорта: первичный ключ — новая колонка `ID`, внешний код строки
+  (`ORIGIN_ID`) уникален в пределах кода импорта, а не во всей таблице. Было:
+  ключ — один `ORIGIN_ID`, и два импорта с одинаковым внешним кодом
+  сталкивались на вставке. Таблицу 1.x переводит `SyncTable::init()` —
+  установщик сам, при обновлении заменой файлов — вызов руками
+  (`docs/portal-check.md`, шаг B). `getPrimary()` строки теперь `['ID' => …]`;
+* убрано то, чем модуль не пользовался и что ехало на портал клиента:
+  демо-модель highload-блока `Sync\Model\Hl\Demo` (таблица `list_cards`),
+  интерфейсы `Sync\IEntityProcess`, `Sync\IEntitySave`,
+  `Model\IBlock\IPropertyCode` и трейт `IPropertyCodeTrait`, перечисление
+  `Model\IBlock\TextTypeEnum`, `Integration\Manager::getUrlShefInsyncModel()`.
+  Метод `FromFile\AAgent::actionRabbitMq()` из рабочей копии 1.2.12 не
+  перенесён: вызывающих нет, модуля очереди в линейке нет.
 
 **Безопасность**
 
@@ -92,7 +105,7 @@
   все агенты: правка контекста одним агентом доставалась другому;
 * `Utils::translation()` без ключа `lang` — warning на каждом новом элементе
   и разделе с именем;
-* `IPropertyIdTrait`, `IPropertyCodeTrait` до настройки бросали `Error`
+* `IPropertyIdTrait` до настройки бросал `Error`
   вместо обещанного `LogicException`;
 * `AConnector` передавал в `HttpClient` таймауты и флаг `waitResponse` без
   приведения типов (`waitResponse` — числом 2);
@@ -136,8 +149,7 @@
   называет свойство;
 * `Section::setParentByXmlId()` не сбрасывает родителя, которого нет, и
   называет ненайденный XML_ID;
-* `FromFile\AAgent` собирает результаты строк в `data->results`, метод
-  `actionRabbitMq()` — обработка строк, переданных снаружи;
+* `FromFile\AAgent` собирает результаты строк в `data->results`;
 * сбой агента пишется с трассировкой.
 
 **Модели и драйверы**

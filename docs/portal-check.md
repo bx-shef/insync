@@ -97,12 +97,20 @@ mysql -e "SELECT COUNT(*) FROM shef_insync_model" portal
 ```php
 require $_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/shef.insync/install/index.php';
 (new shef_insync())->InstallFiles();
+\Bitrix\Main\Loader::includeModule('shef.insync');
+\Shef\InSync\Sync\Model\SyncTable::init();   // ключ таблицы 1.x -> 2.x
 ```
+
+`init()` переводит таблицу импорта 1.x на ключ 2.x: первичный ключ — новая
+колонка `ID`, внешний код уникален в пределах кода импорта. Строки остаются;
+повторный вызов ничего не делает.
 
 **Ожидается:**
 
 * `/local/components/shef.insync/` удалён, `/bitrix/components/shef.insync/` на месте;
 * число строк в `shef_insync_model` то же;
+* `SHOW KEYS FROM shef_insync_model` — `PRIMARY` на `ID`, уникальный
+  `shef_insync_model_origin` на `ORIGINATOR_ID, ORIGIN_ID`;
 * страница «Статистика» открывается администратору, грид и список агентов на
   месте, кнопки агентов работают (см. D);
 * страница настроек модуля открывается (см. C) — в 1.x она падала бы на

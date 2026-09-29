@@ -120,25 +120,47 @@ Connection::$tables = [];
 $module->InstallDB();
 
 Check::same('таблица создана', in_array(TABLE, Connection::$tables, true), true);
-Check::same('поле ADDITIONAL расширено и индексы построены', count(array_filter(
+Check::same('поле ADDITIONAL расширено, внешний код уникален в пределах импорта', array_values(array_filter(
 	Connection::$queries,
-	static fn(string $sql): bool => str_starts_with($sql, 'ALTER TABLE '.TABLE) || str_starts_with($sql, 'CREATE INDEX')
-)), 4);
+	static fn(string $sql): bool => str_starts_with($sql, 'ALTER TABLE '.TABLE) || str_starts_with($sql, 'CREATE ')
+)), [
+	'CREATE TABLE '.TABLE,
+	'ALTER TABLE '.TABLE.' MODIFY ADDITIONAL MEDIUMTEXT;',
+	'CREATE UNIQUE INDEX '.TABLE.'_origin ON '.TABLE.' (ORIGINATOR_ID, ORIGIN_ID);',
+]);
 
-$queries = count(Connection::$queries);
+// DDL — только queryExecute(); query() здесь — чтение ключей таблицы.
+$ddl = static fn(): array => array_values(array_filter(
+	Connection::$queries,
+	static fn(string $sql): bool => !str_starts_with($sql, 'SHOW ')
+));
+
+$before = $ddl();
+Connection::$row = ['Column_name' => 'ID'];
 $module->InstallDB();
-Check::same('повторная установка таблицу не трогает', count(Connection::$queries), $queries);
+Check::same('повторная установка таблицу 2.x не трогает', $ddl(), $before);
+
+Check::group('установка на таблицу 1.x: ключ переводится');
+
+$module = $given();
+Connection::$row = ['Column_name' => 'ORIGIN_ID'];
+$module->InstallDB();
+Check::same('первичный ключ — ID, внешний код уникален в пределах импорта', $ddl(), [
+	'ALTER TABLE '.TABLE.' DROP PRIMARY KEY, ADD COLUMN ID INT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST, ADD UNIQUE INDEX '.TABLE.'_origin (ORIGINATOR_ID, ORIGIN_ID);',
+]);
+Check::same('таблица не пересоздаётся — строки целы', in_array(TABLE, Connection::$tables, true), true);
+Connection::$row = null;
 
 Check::group('установка: таблица не создалась — модуль не установлен');
 
 $module = $given();
 Connection::$tables = [];
-Connection::$fail = 'CREATE INDEX';
+Connection::$fail = 'CREATE UNIQUE INDEX';
 $GLOBALS['APPLICATION']->exception = null;
 
 Check::same('InstallDB() сообщает об отказе', $module->InstallDB(), false);
 Check::same('модуль снят с регистрации', CoreCalls::$unregistered, ['shef.insync']);
-Check::same('причина — для формы ошибки', str_contains((string)$GLOBALS['APPLICATION']->exception, 'CREATE INDEX'), true);
+Check::same('причина — для формы ошибки', str_contains((string)$GLOBALS['APPLICATION']->exception, 'CREATE UNIQUE INDEX'), true);
 
 Check::same('недоделанная таблица убрана', in_array(TABLE, Connection::$tables, true), false);
 
@@ -147,10 +169,10 @@ Connection::$queries = [];
 $module = $given();
 Connection::$tables = [];
 Check::same('повторная установка после сбоя', $module->InstallDB(), true);
-Check::same('…строит таблицу целиком, с индексами', count(array_filter(
+Check::same('…строит таблицу целиком, с индексом', count(array_filter(
 	Connection::$queries,
-	static fn(string $sql): bool => str_starts_with($sql, 'CREATE INDEX')
-)), 3);
+	static fn(string $sql): bool => str_starts_with($sql, 'CREATE UNIQUE INDEX')
+)), 1);
 
 Check::group('удаление: таблица не удалилась — след в журнале');
 

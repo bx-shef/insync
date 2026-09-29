@@ -1,7 +1,7 @@
 <?php declare(strict_types=1);
 
 /**
- * Помощники импорта: какие файлы берутся, транслит, трейты свойств.
+ * Помощники импорта: какие файлы берутся, транслит, трейт ID свойства.
  *
  * Держится:
  *
@@ -10,7 +10,7 @@
  *    без расширения и process_<код>_… (файл, уже взятый в обработку);
  * 2. Utils::translation() без ключа lang — без warning. Было: warning на
  *    каждом новом элементе и разделе с именем;
- * 3. трейты кода и ID свойства до настройки бросают обещанный
+ * 3. трейт ID свойства до настройки бросает обещанный
  *    LogicException, а не Error «must not be accessed before initialization».
  */
 
@@ -21,7 +21,6 @@ require_once $root.'/tests/assert.php';
 
 use Shef\InSync\Main\Utils;
 use Shef\InSync\Sync\FromFile\FileMask;
-use Shef\InSync\Sync\Model\IBlock\IPropertyCodeTrait;
 use Shef\InSync\Sync\Model\IBlock\IPropertyIdTrait;
 
 Check::group('какие файлы забирает getExistFiles()');
@@ -54,12 +53,11 @@ Check::group('транслит');
 
 Check::same('без lang — без warning', Utils::translation('Прайс'), 'Прайс');
 
-Check::group('трейты свойства до настройки');
+Check::group('трейт ID свойства до настройки');
 
 final class PropertyDemo
 {
 	use IPropertyIdTrait;
-	use IPropertyCodeTrait;
 }
 
 $error = static function(callable $call): string
@@ -77,11 +75,8 @@ $error = static function(callable $call): string
 };
 
 Check::same('ID не задан — LogicException', $error(static fn() => PropertyDemo::getPropertyId()), LogicException::class);
-Check::same('код не задан — LogicException', $error(static fn() => PropertyDemo::getPropertyCode()), LogicException::class);
 
 PropertyDemo::setPropertyId(12);
-PropertyDemo::setPropertyCode('COLOR');
 Check::same('заданный ID', PropertyDemo::getPropertyId(), 12);
-Check::same('заданный код', PropertyDemo::getPropertyCode(), 'COLOR');
 
 Check::finish();

@@ -182,11 +182,9 @@ abstract class AFileProcess
 	abstract protected function parseFile(): void;
 
 	/**
-	 * Обработка данных из $this->content
-	 * Тут используем IEntityProcess для записи в SyncTable
+	 * Обработка данных из $this->content: строки — в таблицу импорта
 	 *
 	 * @see \Shef\InSync\Sync\Model\SyncTable
-	 * @see \Shef\InSync\Sync\IEntityProcess
 	 *
 	 * @return Result
 	 */
