@@ -96,7 +96,7 @@ $goods->oldApiUpdateProps(['COLOR' => $enum->getId()]);
 | драйвер | `save(array $primary, array $params)` |
 |---|---|
 | `\Shef\InSync\Sync\Model\Catalog\Driver\Product` | `['ID' => товар]`, поля торгового каталога: `WEIGHT`, `VAT_ID`, `PURCHASING_PRICE`, … |
-| `\Shef\InSync\Sync\Model\Catalog\Driver\Price` | `['PRODUCT_ID' => …, 'CATALOG_GROUP_ID' => тип цены]`, `['PRICE' => …, 'CURRENCY' => 'BYN']` |
+| `\Shef\InSync\Sync\Model\Catalog\Driver\Price` | `['PRODUCT_ID' => …, 'CATALOG_GROUP_ID' => тип цены]`, `['PRICE' => …, 'CURRENCY' => 'BYN']`; пишутся только `PRICE`, `PRICE_SCALE` (нет — равна `PRICE`), `CURRENCY`, прочие ключи не пишутся |
 | `\Shef\InSync\Sync\Model\Catalog\Driver\Amount` | `['PRODUCT_ID' => …]`, `['STORE_ID' => …, 'AMOUNT' => …]` |
 
 ```php

@@ -276,7 +276,7 @@ class Response
 	
 	/**
 	 * JsonSerializable::jsonSerialize
-	 * Specify data which should be serialized to JSON
+	 * Данные для json_encode() — массив toArray()
 	 * @return array
 	 */
 	#[\ReturnTypeWillChange]

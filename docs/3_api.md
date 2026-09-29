@@ -19,7 +19,7 @@
 `\Shef\InSync\Api\AConnector::sendRequest()` отправляет запрос (`GET` —
 параметры в адрес, остальные методы — телом) и возвращает `Result` с
 отправленным и полученным. Таймауты — из опций объекта: `socketTimeout` (30),
-`streamTimeout` (60), `waitResponse` (2).
+`streamTimeout` (60), `waitResponse` (да). Значения приводятся к типам ядра: секунды — целым, `waitResponse` — флагом.
 
 При ошибке запрос пишется в лог проблем. Заголовки с `authorization`, `token`,
 `key`, `secret`, `password`, `cookie`, `session` в имени уходят туда маской

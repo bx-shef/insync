@@ -61,7 +61,7 @@ class SectionTable
 		/** @var Section $section */
 		$section = $event->getParameter('object');
 		
-		// save old fields
+		// запоминаем прежние поля раздела
 		$oldValues = \CIBlockSection::GetList([], ["ID" => $section->getId(), "CHECK_PERMISSIONS" => "N"])->Fetch();
 		$section->customData->set('RECOUNT_TREE_OLD_VALUES', $oldValues);
 	}

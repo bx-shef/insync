@@ -94,21 +94,40 @@ Class shef_insync
 	{
 		RegisterModule($this->MODULE_ID);
 		
+		// region Model ////
+		// Таблица — первой и без глушения ошибок: без неё модуль не работает,
+		// а пустой catch показывал «установлено» и при упавшем DDL.
 		try
 		{
 			\Bitrix\Main\Loader::includeModule($this->MODULE_ID);
-			
-			$this->installLeftMenu();
-			
-			// region Model ////
 			\Shef\InSync\Sync\Model\SyncTable::init();
-			// endregion ////
 		}
 		catch(\Throwable $throwable)
 		{
-		
+			UnRegisterModule($this->MODULE_ID);
+			$this->application->ThrowException(
+				Loc::getMessage('SH_INSTALL_TABLE_FAIL').' '.$throwable->getMessage()
+			);
+			
+			return false;
 		}
+		// endregion ////
 		
+		// Раздел левого меню — удобство: без intranet (БУС) его просто нет.
+		try
+		{
+			$this->installLeftMenu();
+		}
+		catch(\Throwable $throwable)
+		{
+			\CEventLog::Log(
+				'WARNING',
+				'SHEF_INSYNC_INSTALL',
+				$this->MODULE_ID,
+				'installLeftMenu',
+				$throwable->getMessage()
+			);
+		}
 		
 		return true;
 	}
@@ -142,7 +161,15 @@ Class shef_insync
 		}
 		catch(\Throwable $throwable)
 		{
-		
+			// Модуль снимается всё равно, но след остаётся: таблица с данными
+			// импорта на портале — не то, что должно пропасть из виду молча.
+			\CEventLog::Log(
+				'WARNING',
+				'SHEF_INSYNC_UNINSTALL',
+				$this->MODULE_ID,
+				'SyncTable::drop',
+				$throwable->getMessage()
+			);
 		}
 		
 		$this->unInstallLeftMenu();
@@ -605,7 +632,18 @@ Class shef_insync
 			|| version_compare(SM_VERSION, $this->NEED_MAIN_VERSION) >= 0
 		)
 		{
-			$response = $this->InstallDB();
+			if(!$this->InstallDB())
+			{
+				$problem = $this->application->GetException();
+				$this->ShowForm(
+					'ERROR',
+					htmlspecialcharsbx(
+						$problem instanceof \CApplicationException
+						? $problem->GetString()
+						: (string)Loc::getMessage('SH_INSTALL_TABLE_FAIL')
+					)
+				);
+			}
 			$response = $this->InstallEvents();
 			$response = $this->InstallFiles();
 

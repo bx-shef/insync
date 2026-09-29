@@ -42,7 +42,7 @@ Composer разворачивает в целевой каталог **коре�
 | `build.sh` | KEEP | сборка и проверки |
 | `tests/` | KEEP | тесты и заглушки ядра |
 | `examples/` | KEEP | запускаемые примеры |
-| `.claude/skills/` | KEEP | навыки агента — **копия** из `bx-shef/options`, раскладывает `sync.sh` |
+| `.claude/skills/` | KEEP | навыки агента: навыки линейки — **копия** из `bx-shef/options` (`sync.sh --to`), навыки про shef.insync — свои, перечислены в `LOCAL.MANIFEST` (`sync.sh --local`) |
 | `.github/` | KEEP | CI и релиз |
 | `CONTRIBUTING.md`, `CLAUDE.md` | KEEP | процесс и памятка агенту |
 | `.gitattributes`, `.gitignore` | KEEP | |

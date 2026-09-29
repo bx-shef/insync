@@ -50,8 +50,10 @@ PHP-код, поэтому `\Shef\InSync\Agents\Entity::prepareNameForDb()` эк
   параметры восстанавливаются разбором строки
   (`\Shef\InSync\Agents\Manager::parseName()`). Это разбор, а не исполнение:
   **для показа, а не для логики**;
-* `\Shef\InSync\Agents\Manager::getModuleIdById()` — чей агент; по нему
-  проверяются права.
+* `\Shef\InSync\Agents\Manager::getModuleIdById()` — чей агент;
+* `\Shef\InSync\Agents\Manager::getImportAgentModuleId()` — модуль агента,
+  только если это агент импорта (наследник `AAgent`); по нему проверяются
+  права. Агенты ядра и прочие из интерфейса модуля не трогаются.
 
 Включать и выключать агенты из интерфейса может администратор либо
 пользователь с правом «Запись» на модуль агента — см. [security.md](security.md).

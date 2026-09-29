@@ -80,12 +80,12 @@ interface IElement
 	public function clearInterfaceSyncStatus(): void;
 	
 	/**
-	 * save Entity
+	 * Сохраняет сущность
 	 * @return ORM\Data\AddResult|ORM\Data\UpdateResult|ORM\Data\Result
 	 */
 	public function saveInterface(): ORM\Data\AddResult|ORM\Data\UpdateResult|ORM\Data\Result;
 	/**
-	 * delete Entity
+	 * Удаляет сущность
 	 * @return ORM\Data\DeleteResult|ORM\Data\Result
 	 */
 	public function deleteInterface(): ORM\Data\DeleteResult|ORM\Data\Result;

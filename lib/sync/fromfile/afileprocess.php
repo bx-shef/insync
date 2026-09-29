@@ -32,11 +32,9 @@ use Shef\InSync\Main\Constants;
  *
  * В Результате файл распарсится, записи попадут в таблицу импорта, файл уйдет в архив
  *
- * @memo Для опций используем AEntityProcess::optionCollection
- *
- * @memo Переопределяем AEntityProcess::OriginatorId
- * @memo Переопределяем AEntityProcess::import
- * @memo Переопределяем AEntityProcess::init() для инициализации строки файла в элемент для записи в таблицу импорта
+ * @memo Переопределяем Sync\AProcess::OriginatorId
+ * @memo Переопределяем AFileProcess::import()
+ * @memo Переопределяем Sync\IProcess::init() для инициализации строки файла в элемент для записи в таблицу импорта
  */
 abstract class AFileProcess
 	extends Sync\AProcess
@@ -295,7 +293,7 @@ abstract class AFileProcess
 		/** @var DirectoryIterator $item */
 
 		$iterator = new DirectoryIterator(static::getImportFolder());
-		$match = "/$name.+\.($extension)*$/i";
+		$match = FileMask::build($name, $extension);
 
 		$list = [];
 		foreach($iterator as $item)

@@ -42,7 +42,7 @@ $options->addTab(
 					'15' => Loc::getMessage($options->moduleId.'_TAB_DEF_maxdaydonefile_ENUM_XX', ['#VALUE#' => 15]),
 					'30' => Loc::getMessage($options->moduleId.'_TAB_DEF_maxdaydonefile_ENUM_XX', ['#VALUE#' => 30]),
 				])
-				->setDefValue('3')
+				->setDefValue((string)\Shef\InSync\Main\Constants::DEFAULT_MAX_DAY_DONE_FILE)
 		)
 );
 

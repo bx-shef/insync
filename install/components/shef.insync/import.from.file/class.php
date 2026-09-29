@@ -242,9 +242,17 @@ class ShefInSyncImportFromFileComponent
 			return null;
 		}
 
-		if(preg_match('/^(php\d*|phtml|phar|pht|phps|inc|cgi|pl|py|sh|asp|aspx|jsp|shtml|htaccess|htm|html|svg|js)$/', $extension))
+		// Каждое расширение имени, а не только последнее: price.php.csv на
+		// сервере с AddHandler по «.php» исполняется. Список — то, что сервер
+		// исполняет или браузер показывает как страницу.
+		$partList = explode('.', mb_strtolower($name));
+		array_shift($partList);
+		foreach($partList as $part)
 		{
-			return null;
+			if(preg_match('/^(php\d*|phtml|phtm|phar|pht|phps|inc|cgi|pl|py|sh|asp|aspx|jsp|shtml|shtm|htaccess|htm|html|xhtml|xht|svg|svgz|js|hta|mht|mhtml)$/', $part))
+			{
+				return null;
+			}
 		}
 
 		// Ядро знает и свои исполняемые расширения — из настроек портала.

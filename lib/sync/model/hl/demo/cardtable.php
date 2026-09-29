@@ -10,12 +10,12 @@ use Bitrix\Main\ORM\Objectify\EntityObject;
 use Bitrix\Main\SystemException;
 
 /**
- * Class CardsTable
+ * Демо-модель highload-блока (таблица list_cards).
  *
- * Fields:
- * - ID int mandatory
- * - UF_XML_ID text optional
- * - UF_SUM text optional
+ * Поля:
+ * - ID int, обязательное
+ * - UF_XML_ID text
+ * - UF_SUM float
  *
  * @memo Делаем HL в админке руками/программно, идем в таблицу БД и генерируем ORM, потом делаем анатацию
  * @memo use shef-cli
@@ -30,7 +30,7 @@ class CardTable
 	extends DataManager
 {
 	/**
-	 * Returns DB table name for entity.
+	 * Таблица highload-блока в БД.
 	 *
 	 * @return string
 	 */
@@ -50,7 +50,7 @@ class CardTable
 	}
 	
 	/**
-	 * Returns entity map definition.
+	 * Поля сущности.
 	 *
 	 * @return array
 	 * @throws SystemException

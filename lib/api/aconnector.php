@@ -70,16 +70,18 @@ abstract class AConnector
 	 */
 	public function reInitHttpParams(): self
 	{
+		// Типы — явно: при strict_types типизированная сигнатура ядра не
+		// примет ни строку из настроек, ни прежнее «2» вместо флага.
 		$this->httpClient->setTimeout(
-			$this->getOptionCollection()->get('socketTimeout') ?? 30
+			(int)($this->getOptionCollection()->get('socketTimeout') ?? 30)
 		);
 		
 		$this->httpClient->setStreamTimeout(
-			$this->getOptionCollection()->get('streamTimeout') ?? 60
+			(int)($this->getOptionCollection()->get('streamTimeout') ?? 60)
 		);
 		
 		$this->httpClient->waitResponse(
-			$this->getOptionCollection()->get('waitResponse') ?? 2
+			(bool)($this->getOptionCollection()->get('waitResponse') ?? true)
 		);
 		
 		return $this;

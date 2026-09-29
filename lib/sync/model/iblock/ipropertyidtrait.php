@@ -11,7 +11,7 @@ use Bitrix\Main\SystemException;
 trait IPropertyIdTrait
 {
 	/** @var int[]  */
-	protected static array $propertyId;
+	protected static array $propertyId = [];
 	
 	public static function setPropertyId(int $propertyId): void
 	{
@@ -26,7 +26,7 @@ trait IPropertyIdTrait
 	public static function getPropertyId(): int
 	{
 		$subclass = static::class;
-		if(empty((string)static::$propertyId[$subclass]))
+		if(empty((string)(static::$propertyId[$subclass] ?? 0)))
 		{
 			throw new LogicException(sprintf(
 				'Not set proprtyId at %s. Use setPropertyId()',

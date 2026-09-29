@@ -74,7 +74,13 @@ namespace Bitrix\Main\Type
 			}
 		}
 
-		class DateTime extends Date {}
+		class DateTime extends Date
+		{
+			public static function createFromTimestamp(int $timestamp): static
+			{
+				return new static(gmdate('Y-m-d H:i:s', $timestamp));
+			}
+		}
 	}
 }
 

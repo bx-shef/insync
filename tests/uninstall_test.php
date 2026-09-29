@@ -75,7 +75,12 @@ function CopyDirFiles(string $from, string $to, bool $rewrite = true, bool $recu
 
 $GLOBALS['APPLICATION'] = new class extends CMain
 {
-	public function ThrowException(string $message): void {}
+	public null|string $exception = null;
+
+	public function ThrowException(string $message): void
+	{
+		$this->exception = $message;
+	}
 };
 
 $GLOBALS['CACHE_MANAGER'] = new class
@@ -123,6 +128,30 @@ Check::same('поле ADDITIONAL расширено и индексы постр
 $queries = count(Connection::$queries);
 $module->InstallDB();
 Check::same('повторная установка таблицу не трогает', count(Connection::$queries), $queries);
+
+Check::group('установка: таблица не создалась — модуль не установлен');
+
+$module = $given();
+Connection::$tables = [];
+Connection::$fail = 'CREATE INDEX';
+$GLOBALS['APPLICATION']->exception = null;
+
+Check::same('InstallDB() сообщает об отказе', $module->InstallDB(), false);
+Check::same('модуль снят с регистрации', CoreCalls::$unregistered, ['shef.insync']);
+Check::same('причина — для формы ошибки', str_contains((string)$GLOBALS['APPLICATION']->exception, 'CREATE INDEX'), true);
+
+Connection::$fail = null;
+
+Check::group('удаление: таблица не удалилась — след в журнале');
+
+$module = $given();
+Connection::$fail = 'DROP TABLE';
+CEventLog::$records = [];
+$module->UnInstallDB();
+Connection::$fail = null;
+
+Check::same('запись в журнале событий', array_column(CEventLog::$records, 'AUDIT_TYPE_ID'), ['SHEF_INSYNC_UNINSTALL']);
+Check::same('модуль всё равно снят', CoreCalls::$unregistered, ['shef.insync']);
 
 Check::group('удаление уносит настройки и таблицу импорта');
 

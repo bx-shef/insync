@@ -88,7 +88,7 @@ diff /tmp/composer.txt /tmp/zip.txt    # должно быть пусто
 |---|---|
 | `PHP 8.2` … `PHP 8.5` | `./build.sh --check`, `fail-fast: false` |
 | `Composer` | `composer validate --strict`: пакет ставят через Composer, и сломанный манифест виден только тому, кто ставит |
-| `Skills` | `sync.sh --check` против `MANIFEST` источника в `bx-shef/options`: навыки здесь — копия, и копия не должна отставать |
+| `Skills` | `sync.sh --check` против `MANIFEST` источника в `bx-shef/options`: навыки линейки здесь — копия, и копия не должна отставать; свои навыки (`LOCAL.MANIFEST`) источник не сверяет |
 | `Build` | `./build.sh` плюс архив артефактом прогона |
 | `CI` | ворота, `needs: [checks, composer, skills, build]` |
 

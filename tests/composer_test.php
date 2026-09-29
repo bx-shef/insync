@@ -44,6 +44,7 @@ Check::same('shef.problems — своим пакетом', $require['bxshef/prob
 Check::same('shef.uiclear не нужен', array_key_exists('shef/uiclear', $require) || array_key_exists('bxshef/uiclear', $require), false);
 Check::same('старых имён пакетов линейки нет', array_key_exists('shef/options', $require) || array_key_exists('shef/problems', $require), false);
 Check::same('расширение xmlreader — как в .settings.php', isset($require['ext-xmlreader']), true);
+Check::same('расширение mbstring — как в .settings.php', isset($require['ext-mbstring']), true);
 
 Check::group('версия PHP — одна на всех');
 
